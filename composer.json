@@ -1,0 +1,21 @@
+{
+    "name": "hok/applovin",
+    "description": "applovin la plateforme d'investissement cryptos",
+    "type": "project",
+    "require": {
+        "cinetpay/cinetpay-php": "^1.9",
+        "endroid/qr-code": "^6.0",
+        "web3p/web3.php": "^0.3"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Hok\\Applovin\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "mr zedthrakyon"
+        }
+    ]
+}

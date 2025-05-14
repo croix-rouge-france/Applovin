@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="target-densitydpi=device-dpi, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Invite</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/line-awesome/1.3.0/line-awesome/css/line-awesome.min.css"
+      integrity="sha512-vebUliqxrVkBy3gucMhClmyQP9On/HAWQdKDXRaAlb/FKuTbxkjPKUyqVOxAcGwFDka79eTF+YXwfke1h3/wfg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      href="https://db.onlinewebfonts.com/c/05e476e067ffef74ca5686f229c40a63?family=PingFang+SC+Regular"
+      rel="stylesheet"
+    />
+
+    <link href="assets/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="assets/css/jquery.toast.css" rel="stylesheet" />
+    <link href="assets/css/style.css" rel="stylesheet" />
+    <link href="assets/css/font.css" rel="stylesheet" />
+
+    <style>
+      .bg-header {
+        background-color: #dae2e5;
+      }
+
+      .bar-icon {
+        background-size: 36px;
+        width: 35px;
+        height: 35px;
+        margin-top: 1px;
+        cursor: pointer;
+      }
+
+      .bar-icon {
+        background-image: url("data:image/svg+xml;base64,PHN2ZyBkYXRhLXYtN2QyNmIwMTI9Jycgd2lkdGg9JzIyJyBoZWlnaHQ9JzIyJyB2aWV3Qm94PScwIDAgMTYgMTYnIGZpbGw9JyM4NTlhYjUnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zyc+PHBhdGggZGF0YS12LTdkMjZiMDEyPScnIGZpbGwtcnVsZT0nZXZlbm9kZCcgY2xpcC1ydWxlPSdldmVub2RkJyBkPSdNMy4xNjY1OSA3LjY2NjcxQzUuODc5MjUgNy42NjY3MSA1Ljk5OTkyIDguNTg2NzEgNS45OTk5MiAxMC41QzUuOTk5OTIgMTEuNDU4NyA1Ljk5OTkyIDEyLjE0MDcgNS41OTcyNSAxMi42NEM1LjEzMzkyIDEzLjIxNTQgNC4yOTA1OSAxMy4zMzM0IDMuMTY2NTkgMTMuMzMzNEMyLjA0MjU5IDEzLjMzMzQgMS4xOTkyNSAxMy4yMTU0IDAuNzM1OTE5IDEyLjY0QzAuMzMzMjUyIDEyLjE0MDcgMC4zMzMyNTIgMTEuNDU5NCAwLjMzMzI1MiAxMC41MTY3TDAuODMzMjUyIDEwLjVIMC4zMzMyNTJDMC4zMzMyNTIgOC41ODY3MSAwLjQ1MzkxOSA3LjY2NjcxIDMuMTY2NTkgNy42NjY3MVpNMTAuNDk5OSA3LjY2NjcxQzEzLjIxMjYgNy42NjY3MSAxMy4zMzMzIDguNTg2NzEgMTMuMzMzMyAxMC41QzEzLjMzMzMgMTEuNDU4NyAxMy4zMzMzIDEyLjE0MDcgMTIuOTMwNiAxMi42NEMxMi40NjczIDEzLjIxNTQgMTEuNjIzOSAxMy4zMzM0IDEwLjQ5OTkgMTMuMzMzNEM5LjM3NTkyIDEzLjMzMzQgOC41MzI1OSAxMy4yMTU0IDguMDY5MjUgMTIuNjRDNy42NjY1OSAxMi4xNDA3IDcuNjY2NTkgMTEuNDU5NCA3LjY2NjU5IDEwLjUxNjdMOC4xNjY1OSAxMC41SDcuNjY2NTlDNy42NjY1OSA4LjU4NjcxIDcuNzg3MjUgNy42NjY3MSAxMC40OTk5IDcuNjY2NzFaTTMuMzA0MDMgOC42NjdMMy4xNjY1OSA4LjY2NjcxQzEuNDI3MjcgOC42NjY3MSAxLjMzODA3IDguNzkxNTIgMS4zMzM1IDEwLjI1MTRMMS4zMzM3OCAxMC44MjAyQzEuMzM2OTQgMTEuNDAwOCAxLjM1OTA2IDExLjgyMDIgMS41MTM5MiAxMi4wMTM0QzEuNjkwNTkgMTIuMjMyIDIuMjE1MjUgMTIuMzMzNCAzLjE2NjU5IDEyLjMzMzRDNC4xMTc5MiAxMi4zMzM0IDQuNjQyNTkgMTIuMjMxNCA0LjgxOTI1IDEyLjAxMjdDNC45OTk5MiAxMS43ODggNC45OTk5MiAxMS4yNTQ3IDQuOTk5OTIgMTAuNTE2QzQuOTk5OTIgOC44NDkyNCA0Ljk5OTkyIDguNjc0ODUgMy4zMDQwMyA4LjY2N1pNMTAuNjM3NCA4LjY2N0wxMC40OTk5IDguNjY2NzFDOC43NjA2IDguNjY2NzEgOC42NzE0MSA4Ljc5MTUyIDguNjY2ODMgMTAuMjUxNEw4LjY2NzExIDEwLjgyMDJDOC42NzAyNyAxMS40MDA4IDguNjkyNCAxMS44MjAyIDguODQ3MjUgMTIuMDEzNEM5LjAyMzkyIDEyLjIzMiA5LjU0ODU5IDEyLjMzMzQgMTAuNDk5OSAxMi4zMzM0QzExLjQ1MTMgMTIuMzMzNCAxMS45NzU5IDEyLjIzMTQgMTIuMTUyNiAxMi4wMTI3QzEyLjMzMzMgMTEuNzg4IDEyLjMzMzMgMTEuMjU0NyAxMi4zMzMzIDEwLjUxNkMxMi4zMzMzIDguODQ5MjQgMTIuMzMzMyA4LjY3NDg1IDEwLjYzNzQgOC42NjdaTTMuMTY2NTkgMC4zMzMzNzRDNS44NzkyNSAwLjMzMzM3NCA1Ljk5OTkyIDEuMjUzMzcgNS45OTk5MiAzLjE2NjcxQzUuOTk5OTIgNC4xMjUzNyA1Ljk5OTkyIDQuODA3MzcgNS41OTcyNSA1LjMwNjcxQzUuMTMzOTIgNS44ODIwNCA0LjI5MDU5IDYuMDAwMDQgMy4xNjY1OSA2LjAwMDA0QzIuMDQyNTkgNi4wMDAwNCAxLjE5OTI1IDUuODgyMDQgMC43MzU5MTkgNS4zMDY3MUMwLjMzMzI1MiA0LjgwNzM3IDAuMzMzMjUyIDQuMTI2MDQgMC4zMzMyNTIgMy4xODMzN0wwLjgzMzI1MiAzLjE2NjcxSDAuMzMzMjUyQzAuMzMzMjUyIDEuMjUzMzcgMC40NTM5MTkgMC4zMzMzNzQgMy4xNjY1OSAwLjMzMzM3NFpNMTAuNDk5OSAwLjMzMzM3NEMxMy4yMTI2IDAuMzMzMzc0IDEzLjMzMzMgMS4yNTMzNyAxMy4zMzMzIDMuMTY2NzFDMTMuMzMzMyA0LjEyNTM3IDEzLjMzMzMgNC44MDczNyAxMi45MzA2IDUuMzA2NzFDMTIuNDY3MyA1Ljg4MjA0IDExLjYyMzkgNi4wMDAwNCAxMC40OTk5IDYuMDAwMDRDOS4zNzU5MiA2LjAwMDA0IDguNTMyNTkgNS44ODIwNCA4LjA2OTI1IDUuMzA2NzFDNy42NjY1OSA0LjgwNzM3IDcuNjY2NTkgNC4xMjYwNCA3LjY2NjU5IDMuMTgzMzdMOC4xNjY1OSAzLjE2NjcxSDcuNjY2NTlDNy42NjY1OSAxLjI1MzM3IDcuNzg3MjUgMC4zMzMzNzQgMTAuNDk5OSAwLjMzMzM3NFpNMy4zMDQwMyAxLjMzMzY3TDMuMTY2NTkgMS4zMzMzN0MxLjQyNzI3IDEuMzMzMzcgMS4zMzgwNyAxLjQ1ODE4IDEuMzMzNSAyLjkxODA3TDEuMzMzNzggMy40ODY4M0MxLjMzNjk0IDQuMDY3NDcgMS4zNTkwNiA0LjQ4NjkgMS41MTM5MiA0LjY4MDA0QzEuNjkwNTkgNC44OTg3MSAyLjIxNTI1IDUuMDAwMDQgMy4xNjY1OSA1LjAwMDA0QzQuMTE3OTIgNS4wMDAwNCA0LjY0MjU5IDQuODk4MDQgNC44MTkyNSA0LjY3OTM3QzQuOTk5OTIgNC40NTQ3MSA0Ljk5OTkyIDMuOTIxMzcgNC45OTk5MiAzLjE4MjcxQzQuOTk5OTIgMS41MTU5IDQuOTk5OTIgMS4zNDE1MiAzLjMwNDAzIDEuMzMzNjdaTTEwLjYzNzQgMS4zMzM2N0wxMC40OTk5IDEuMzMzMzdDOC43NjA2IDEuMzMzMzcgOC42NzE0MSAxLjQ1ODE4IDguNjY2ODMgMi45MTgwN0w4LjY2NzExIDMuNDg2ODNDOC42NzAyNyA0LjA2NzQ3IDguNjkyNCA0LjQ4NjkgOC44NDcyNSA0LjY4MDA0QzkuMDIzOTIgNC44OTg3MSA5LjU0ODU5IDUuMDAwMDQgMTAuNDk5OSA1LjAwMDA0QzExLjQ1MTMgNS4wMDAwNCAxMS45NzU5IDQuODk4MDQgMTIuMTUyNiA0LjY3OTM3QzEyLjMzMzMgNC40NTQ3MSAxMi4zMzMzIDMuOTIxMzcgMTIuMzMzMyAzLjE4MjcxQzEyLjMzMzMgMS41MTU5IDEyLjMzMzMgMS4zNDE1MiAxMC42Mzc0IDEuMzMzNjdaJz48L3BhdGg+PC9zdmc+");
+        background-position: top left;
+        background-repeat: no-repeat;
+      }
+
+      .logo-img {
+        width: 160px;
+        height: 50px;
+      }
+
+      .header-icon {
+        font-size: 45px;
+        color: white;
+        font-weight: bold;
+      }
+
+      .flag-img {
+        width: 35px;
+        border: 1px solid #dadada;
+        padding: 2px;
+        border-radius: 6px;
+        background: #fff;
+      }
+
+      .border-purple {
+        border: 1px solid var(--bs-purple);
+      }
+
+      .payment-img {
+        height: 60px;
+        width: 120px;
+      }
+
+      .text-purple {
+        color: var(--bs-purple);
+      }
+
+      .footer {
+        box-shadow: 0px -1px 10px var(--bs-purple);
+        border-top-left-radius: 15px;
+        border-top-right-radius: 15px;
+        width: 150px;
+        margin: 0 auto;
+        left: 30%;
+      }
+    </style>
+  </head>
+  <body style="overflow-x: hidden; background: #f6f7f9;">
+    <!-- header -->
+    <div class="card mb-3 border-0 rounded-0 bg-header">
+      <div class="card-body px-3 py-1">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="me-2">
+            <a
+              href="javascript::void()"
+              class="btn btn-link bar-icon"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#staticBackdrop"
+              aria-controls="staticBackdrop"
+            >
+            </a>
+          </div>
+
+          <div>
+            <img src="image/logo.png" class="logo-img" />
+          </div>
+
+          <div>
+            <img src="image/flag.png" class="flag-img" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- header close  -->
+
+    <!-- content  -->
+    <div class="ft_box_12_2">
+      <div id="ProfileBlock">
+        <div class="ft_box_padding">
+          <div class="ft_prof_box_top_flex">
+            <div class="ft_box_2_1">
+              <div class="ft_box_left">
+                <div
+                  class="ft_box_shadow_2"
+                  style="
+                    padding: 25px 30px 25px 30px;
+                    border-radius: 10px;
+                    background: #ffffff;
+                  "
+                >
+                  <div class="ft_font_02">Referral link</div>
+                  <div class="ft_font_05" style="margin: 10px 0 0 0px">
+                    Invite friends and acquaintances and get
+                    <b><span id="ft_friend_amount_1">12</span>$</b> in the form
+                    of remuneration
+                  </div>
+                  <div
+                    class="ft_font_11"
+                    style="
+                      margin: 20px -30px 0 -30px;
+                      background: #f5f3f1;
+                      padding: 15px 30px;
+                    "
+                  >
+                    <b><span id="ft_friend_amount_2">12</span>$</b> for each
+                    referral
+                  </div>
+                  <div class="ft_font_05" style="margin-top: 15px">
+                    Copy your referral link and send it to friends and
+                    acquaintances as a recommendation to register,
+                    <img
+                      src="image/account.png"
+                      style="width: 16px"
+                    />
+                    <span
+                      onclick="Sen.Invitations();"
+                      class="ft_font_49"
+                      style="border-bottom: 1px dashed #1d891b; cursor: pointer"
+                      >How to invite?</span
+                    >
+                  </div>
+                  <div style="margin-top: 15px">
+                    <div style="position: relative">
+                      <input
+                        id="ft_referer"
+                        class="ft_data_in_text ft_data_in_input ft_border_box"
+                        type="text"
+                        name="ft_referer"
+                        required=""
+                        placeholder=" "
+                        aria-required="true"
+                        inputmode="text"
+                        autocomplete="off"
+                        maxlength="1000"
+                        value="https://oolink.store/ref715762_t7v"
+                      />
+                      <span
+                        class="ft_data_in_text_title ft_data_in_title fk_select_none"
+                        >Your link</span
+                      >
+                    </div>
+                  </div>
+                  <div style="padding-top: 15px">
+                    <div
+                      onclick="ClipData('ft_referer', 'https://oolink.store/ref715762_t7v');"
+                      class="ft_balance_button_plus ft_font_06"
+                    >
+                      Copy
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="ft_box_2_2 ft_box_top_1">
+              <div class="ft_box_righ">
+                <div
+                  class="ft_box_shadow_2"
+                  style="
+                    padding: 25px 30px 25px 30px;
+                    border-radius: 10px;
+                    background: #ffffff;
+                  "
+                >
+                  <div class="ft_font_02">Affiliate program</div>
+                  <div class="ft_font_05" style="margin-top: 10px">
+                    Company <b>UooBot</b> provides a generous reward of
+                    <b><span id="ft_friend_amount_3">12</span>$</b> for each
+                    registered person through a referral link, as well as
+                    deductions for a three-level affiliate program
+                    <b>7% / 3% / 1%</b> from the amount of each wallet
+                    replenishment by a referral.
+                  </div>
+                </div>
+                <div style="margin-top: 20px">
+                  <div style="display: table; width: 100%">
+                    <div style="display: table-cell">
+                      <div style="padding-right: 10px">
+                        <div
+                          class="ft_box_shadow_2"
+                          style="
+                            padding: 20px 10px 17px 10px;
+                            border-radius: 10px;
+                            background: #ffffff;
+                            text-align: center;
+                          "
+                        >
+                          <div>
+                            <div style="display: inline-block">
+                              <div
+                                class="ft_font_12"
+                                style="
+                                  background: #74b573;
+                                  border-radius: 100%;
+                                  width: 35px;
+                                  height: 35px;
+                                  text-align: center;
+                                  display: table-cell;
+                                  vertical-align: middle;
+                                "
+                              >
+                                1
+                              </div>
+                            </div>
+                          </div>
+                          <div
+                            class="ft_font_02"
+                            style="
+                              text-transform: uppercase;
+                              font-size: 16px;
+                              margin-top: 10px;
+                            "
+                          >
+                            Level
+                          </div>
+                          <div
+                            class="ft_font_05"
+                            style="
+                              margin-top: 10px;
+                              border-top: 1px dashed #dcdcdc;
+                              padding-top: 10px;
+                            "
+                          >
+                            Partners invited
+                          </div>
+                          <div
+                            id="ft_referal_1"
+                            class="ft_font_10"
+                            style="padding: 12px 0 2px 0"
+                          >
+                            0
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="display: table-cell">
+                      <div style="padding-left: 10px; padding-right: 10px">
+                        <div
+                          class="ft_box_shadow_2"
+                          style="
+                            padding: 20px 10px 17px 10px;
+                            border-radius: 10px;
+                            background: #ffffff;
+                            text-align: center;
+                          "
+                        >
+                          <div>
+                            <div style="display: inline-block">
+                              <div
+                                class="ft_font_12"
+                                style="
+                                  background: #5f82a6;
+                                  border-radius: 100%;
+                                  width: 35px;
+                                  height: 35px;
+                                  text-align: center;
+                                  display: table-cell;
+                                  vertical-align: middle;
+                                "
+                              >
+                                2
+                              </div>
+                            </div>
+                          </div>
+                          <div
+                            class="ft_font_02"
+                            style="
+                              text-transform: uppercase;
+                              font-size: 16px;
+                              margin-top: 10px;
+                            "
+                          >
+                            Level
+                          </div>
+                          <div
+                            class="ft_font_05"
+                            style="
+                              margin-top: 10px;
+                              border-top: 1px dashed #dcdcdc;
+                              padding-top: 10px;
+                            "
+                          >
+                            Partners invited
+                          </div>
+                          <div
+                            id="ft_referal_2"
+                            class="ft_font_10"
+                            style="padding: 12px 0 2px 0"
+                          >
+                            0
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="display: table-cell">
+                      <div style="padding-left: 10px">
+                        <div
+                          class="ft_box_shadow_2"
+                          style="
+                            padding: 20px 10px 17px 10px;
+                            border-radius: 10px;
+                            background: #ffffff;
+                            text-align: center;
+                          "
+                        >
+                          <div>
+                            <div style="display: inline-block">
+                              <div
+                                class="ft_font_12"
+                                style="
+                                  background: #d0d0d0;
+                                  border-radius: 100%;
+                                  width: 35px;
+                                  height: 35px;
+                                  text-align: center;
+                                  display: table-cell;
+                                  vertical-align: middle;
+                                  color: #525252;
+                                "
+                              >
+                                3
+                              </div>
+                            </div>
+                          </div>
+                          <div
+                            class="ft_font_02"
+                            style="
+                              text-transform: uppercase;
+                              font-size: 16px;
+                              margin-top: 10px;
+                            "
+                          >
+                            Level
+                          </div>
+                          <div
+                            class="ft_font_05"
+                            style="
+                              margin-top: 10px;
+                              border-top: 1px dashed #dcdcdc;
+                              padding-top: 10px;
+                            "
+                          >
+                            Partners invited
+                          </div>
+                          <div
+                            id="ft_referal_3"
+                            class="ft_font_10"
+                            style="padding: 12px 0 2px 0"
+                          >
+                            0
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ft_box_padding" style="margin-top: 20px">
+          <div
+            class="ft_box_shadow_2"
+            style="
+              padding: 25px 30px 25px 30px;
+              border-radius: 10px;
+              background: #ffffff;
+            "
+          >
+            <div>
+              <div class="ft_font_18">Referral List</div>
+              <div class="ft_font_05" style="margin: 10px 0 0 0px">
+                This block contains a general list of partners invited by you
+                using an affiliate link and partners invited directly by your
+                referrals of the first and second levels.
+              </div>
+            </div>
+            <div
+              id="PageBoxLin"
+              style="background: #f5f3f1; height: 2px; margin: 20px 0 20px 0"
+            ></div>
+            <input
+              id="ft_int_page_load"
+              name="ft_int_page_load"
+              type="hidden"
+              value="0"
+            />
+            <div>
+              <div>
+                <div>
+                  <div>
+                    <div>
+                      <div
+                        class="ft_font_18"
+                        style="padding-top: 30px; text-align: center"
+                      >
+                        No referrals
+                      </div>
+                      <div
+                        class="ft_font_05"
+                        style="margin-top: 20px; text-align: center"
+                      >
+                        <div style="max-width: 300px; display: inline-block">
+                          So far, no one has registered using your link..
+                        </div>
+                      </div>
+                      <div style="text-align: center; margin: 20px 0">
+                        <img
+                          src="image/reffer.png"
+                          style="max-width: 170px"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- footer  -->
+      <div style="padding: 25px 0 25px 0">
+        <div class="ft_prof_box_top_flex">
+          <div class="ft_box_13_1">
+            <div class="ft_box_left">
+              <div
+                style="
+                  background: url('image/logo.png');
+                  background-size: 110px;
+                  background-position: top left;
+                  background-repeat: no-repeat;
+                  min-height: 77px;
+                  padding: 18px 0 0 120px;
+                "
+              >
+                <div class="ft_font_60">
+                  © 2015—2024 Estonia, Tallin, Viru Väljak 2, 10111, office 79.
+                  All rights reserved.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ft_box_13_2">
+            <div class="ft_box_righ">
+              <div class="ft_dop_profile_8">
+                <div class="ft_prof_box_top_flex">
+                  <div class="ft_box_14_1">
+                    <div class="ft_box_left">
+                      <div
+                        class="ft_menu_button_vk"
+                        style="padding: 2px 0 5px 35px; margin-top: 8px"
+                      >
+                        <div class="ft_font_65 ft_in_bottom_top_txt_2">
+                          Vkontakte
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="ft_box_14_2">
+                    <div class="ft_box_righ">
+                      <div
+                        class="ft_menu_button_tg"
+                        style="padding: 0 0 5px 35px; margin-top: 10px"
+                      >
+                        <div
+                          onclick="Page.Goo('https://t.me/uoo_info');"
+                          class="ft_font_65 ft_in_bottom_top_txt_2"
+                        >
+                          Telegram
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- footer close  -->
+    </div>
+
+    <div
+      class="offcanvas offcanvas-start"
+      tabindex="-1"
+      id="staticBackdrop"
+      aria-labelledby="staticBackdropLabel"
+      style="width: 300px; background-color: #f6f7f9"
+    >
+      <div class="offcanvas-header d-flex justify-content-end">
+        <button
+          type="button"
+          class="btn-close fs-4 fw-bold text-dark text-end"
+          data-bs-dismiss="offcanvas"
+          aria-label="Close"
+        ></button>
+      </div>
+
+      <div class="offcanvas-body">
+        <div style="padding: 0px 30px 30px 30px">
+          <div
+            onclick="Page.Go('/id715762');"
+            class="fk_select_none ft_sing_button_1_1"
+          >
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 7px 0 0 7px">
+                    <div class="ft_sing_button_1_4_1"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  Your office
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            style="height: 1px; background: #d1d1d1; margin: 20px 0; width: 75%"
+          ></div>
+          <div onclick="Sen.Plus();" class="fk_select_none ft_sing_button_1_1">
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 7px 0 0 7px">
+                    <div class="ft_sing_button_1_4_2"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  Fill up a purse
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            onclick="Sen.Back();"
+            class="fk_select_none ft_sing_button_1_1"
+            style="margin-top: 10px"
+          >
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 7px 0 0 7px">
+                    <div class="ft_sing_button_1_4_3"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  Withdraw
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            style="height: 1px; background: #d1d1d1; margin: 20px 0; width: 75%"
+          ></div>
+          <div onclick="Sen.Cloud();" class="fk_select_none ft_sing_button_1_1">
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 8px 0 0 8px">
+                    <div class="ft_sing_button_1_4_5"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  Affiliate program
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            onclick="Sen.Help();"
+            class="fk_select_none ft_sing_button_1_1"
+            style="margin-top: 10px; display: none"
+          >
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 8px 0 0 8px">
+                    <div
+                      id="ft_help_3"
+                      class="ft_font_40 ft_help_1"
+                      style="margin: -3px 0 0 -3px; display: none"
+                    ></div>
+                    <div class="ft_sing_button_1_4_8"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  Support
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            onclick="Sen.History();"
+            class="fk_select_none ft_sing_button_1_1"
+            style="margin-top: 10px"
+          >
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 7px 0 0 8px">
+                    <div class="ft_sing_button_1_4_4"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  Operations history
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            style="height: 1px; background: #d1d1d1; margin: 20px 0; width: 75%"
+          ></div>
+          <div
+            onclick="Sen.Setting();"
+            class="fk_select_none ft_sing_button_1_1"
+          >
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 7px 0 0 7px">
+                    <div class="ft_sing_button_1_4_6"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  Settings and authorization
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style="height: 1px; background: #d1d1d1; margin: 20px 0; width: 75%"
+          ></div>
+          <div
+            onclick="Sen.Date_1();"
+            class="fk_select_none ft_sing_button_1_1"
+          >
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 8px 0 0 8px">
+                    <div class="ft_sing_button_1_4_9"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  About the bot`s work
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            onclick="Sen.Comment();"
+            class="fk_select_none ft_sing_button_1_1"
+            style="margin-top: 10px"
+          >
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 7px 0 0 8px">
+                    <div class="ft_sing_button_1_4_11"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  Reviews
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            onclick="Sen.Contact();"
+            class="fk_select_none ft_sing_button_1_1"
+            style="margin-top: 10px"
+          >
+            <div style="display: table; width: 100%">
+              <div
+                style="display: table-cell; vertical-align: middle; width: 50px"
+              >
+                <div class="ft_sing_button_1_2">
+                  <div style="padding: 6px 0 0 6px">
+                    <div class="ft_sing_button_1_4_10"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display: table-cell; vertical-align: middle">
+                <div class="ft_sing_button_1_3" style="margin-top: -1px">
+                  Contacts
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="assets/js/jquery.min.js"></script>
+    <script src="assets/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/slick.min.js"></script>
+    <script src="assets/js/jquery.toast.js"></script>
+  </body>
+</html>
