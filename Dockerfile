@@ -14,8 +14,8 @@ WORKDIR /var/www/html
 COPY . .
 # Installer les dépendances Composer pour le projet principal (si applicable)
 RUN if [ -f composer.json ]; then composer install --no-dev --optimize-autoloader; fi
-# Installer les dépendances Composer pour phpMyAdmin
-RUN cd phpmyadmin && composer install --no-dev --optimize-autoloader
+# Installer les dépendances Composer pour phpMyAdmin (seulement si le dossier et composer.json existent)
+RUN if [ -d phpmyadmin ] && [ -f phpmyadmin/composer.json ]; then cd phpmyadmin && composer install --no-dev --optimize-autoloader; fi
 COPY ./nginx.conf /etc/nginx/sites-available/default
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
