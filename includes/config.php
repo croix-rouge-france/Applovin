@@ -10,17 +10,17 @@ if (session_status() === PHP_SESSION_NONE) {
 }  
 // CONFIGURATION BASE DE DONNÉES
 // ====================
-if (!defined('DB_HOST')) define('DB_HOST', 'sql211.infinityfree.com');
-if (!defined('DB_USER')) define('DB_USER', 'if0_38609766');
-if (!defined('DB_PASS')) define('DB_PASS', 'q5N2wOnaR79Ykg');
-if (!defined('DB_NAME')) define('DB_NAME', 'if0_38609766_applovin_db');
+if (!defined('DB_HOST')) define('DB_HOST', 'mysql-18eb1c5a-adviserfinancial54-80f2.l.aivencloud.com');
+if (!defined('DB_USER')) define('DB_USER', 'avnadmin');
+if (!defined('DB_PASS')) define('DB_PASS', 'AVNS_CGN0rjVzbogydSu2O4O');
+if (!defined('DB_NAME')) define('DB_NAME', 'defaultdb');
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
 
 // ====================
 // CONFIGURATION GÉNÉRALE
 // ====================
 if (!defined('APP_NAME')) define('APP_NAME', 'APPlovin Investment');
-if (!defined('SITE_URL')) define('SITE_URL', 'https://applovin.kesug.com');
+if (!defined('SITE_URL')) define('SITE_URL', 'https://applovin-invest.onrender.com');
 if (!defined('APP_CURRENCY')) define('APP_CURRENCY', 'USDT');
 if (!defined('SITE_EMAIL')) define('SITE_EMAIL', 'williamgreatford@gmail.com');
 if (!defined('WELCOME_BONUS')) define('WELCOME_BONUS', 0); // 5 USDT
