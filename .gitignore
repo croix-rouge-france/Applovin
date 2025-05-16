@@ -1,0 +1,4 @@
+.env
+vendor/
+phpmyadmin/vendor/
+node_modules/
