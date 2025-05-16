@@ -10,5 +10,5 @@ $cfg['Servers'][$i]['password'] = 'AVNS_CGN0rjVzbogydSu2O4O';
 $cfg['Servers'][$i]['ssl'] = true;
 $cfg['Servers'][$i]['compress'] = false;
 $cfg['Servers'][$i]['AllowNoPassword'] = false;
-$cfg['Servers'][$i]['pmadb'] = 'defaultdb'; // Ajout pour la base de gestion de phpMyAdmin (optionnel)
+$cfg['Servers'][$i]['pmadb'] = 'phpmyadmin'; // Ajout pour la base de gestion de phpMyAdmin (optionnel)
 ?>
