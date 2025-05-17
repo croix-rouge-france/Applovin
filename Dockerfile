@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.2-fpm-bullseye
 
 
 RUN apt-get update && \
@@ -7,7 +7,7 @@ RUN apt-get update && \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
-    libmysqlclient-dev \
+    libmariadb-dev \
     zip \
     unzip \
     git \
@@ -18,7 +18,6 @@ RUN apt-get update && \
 
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
 
 COPY nginx.conf /etc/nginx/nginx.conf
 
