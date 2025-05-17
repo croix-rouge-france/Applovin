@@ -1,11 +1,19 @@
 <?php
+session_start();
 require_once 'includes/config.php';
 require_once 'includes/db.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 // Activation du mode debug
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
+
+// Vérification si l'utilisateur est connecté
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
 
 // Vérification et sécurisation du plan_id
 $plan_id = isset($_GET['plan_id']) ? intval($_GET['plan_id']) : 0;
@@ -26,7 +34,7 @@ $investment_plans = [
 // Vérification si le plan existe
 if (!array_key_exists($plan_id, $investment_plans) || $plan_id <= 0) {
     echo '<div class="error-container"><i class="fas fa-exclamation-triangle"></i> Erreur : Plan invalide ou non spécifié. <a href="investment.php">Retour aux plans</a></div>';
-    exit();
+    exit;
 }
 
 $plan = $investment_plans[$plan_id];
@@ -36,15 +44,62 @@ $daily_earning = $plan['amount'] * $plan['daily_return'] / 100;
 // Vérification que EXCHANGE_RATE est défini et valide
 if (!defined('EXCHANGE_RATE') || EXCHANGE_RATE <= 0) {
     echo '<div class="error-container"><i class="fas fa-exclamation-triangle"></i> Erreur : Taux de change non défini ou invalide. Contactez l\'administrateur.</div>';
-    exit();
+    exit;
 }
 
 // Générer un ID unique pour ce paiement
 $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4));
 
-// Définir l'URL de retour
-$return_url = "https://applovin.kesug.com/return.php"; // Remplacez par votre domaine réel
-$social_shop_url = "https://ecommerce.paydunya.com/applovinpaiementmobilemoney?payment_id=$payment_id&plan_id=$plan_id&amount=$xof_amount&return_url=" . urlencode($return_url);
+// Configurer PayDunya
+$setup = new \Paydunya\Setup([
+    'masterKey' => getenv('PAYDUNYA_MASTER_KEY'),
+    'privateKey' => getenv('PAYDUNYA_PRIVATE_KEY'),
+    'publicKey' => getenv('PAYDUNYA_PUBLIC_KEY'),
+    'token' => getenv('PAYDUNYA_TOKEN'),
+    'mode' => 'test' // Utiliser 'live' en production
+]);
+
+$store = new \Paydunya\Store([
+    'name' => 'Applovin Store',
+    'tagline' => 'Investissez facilement',
+    'returnURL' => 'https://<votre-domaine-render>.onrender.com/return.php',
+    'cancelURL' => 'https://<votre-domaine-render>.onrender.com/cancel.php',
+    'callbackURL' => 'https://<votre-domaine-render>.onrender.com/callback.php'
+]);
+
+$invoice = new \Paydunya\Checkout\CheckoutInvoice($setup, $store);
+
+// Traiter le paiement Mobile Money
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
+    $user_id = $_SESSION['user_id'];
+
+    // Ajouter l'article à la facture
+    $invoice->addItem("Investissement Plan $plan_id", 1, $xof_amount, $xof_amount, "Dépôt pour Applovin");
+    $invoice->setTotalAmount($xof_amount);
+
+    // Données personnalisées
+    $invoice->addCustomData('user_id', $user_id);
+    $invoice->addCustomData('plan_id', $plan_id);
+    $invoice->addCustomData('payment_id', $payment_id);
+    $invoice->addCustomData('transaction_type', 'deposit');
+
+    // Enregistrer la transaction en attente
+    $stmt = $pdo->prepare("INSERT INTO deposits (user_id, plan_id, amount, status, invoice_token, payment_id) VALUES (?, ?, ?, 'pending', ?, ?)");
+    $invoice_token = uniqid('inv_');
+    $stmt->execute([$user_id, $plan_id, $xof_amount, $invoice_token, $payment_id]);
+
+    // Créer la facture PayDunya
+    if ($invoice->create()) {
+        $stmt = $pdo->prepare("UPDATE deposits SET invoice_token = ? WHERE invoice_token = ?");
+        $stmt->execute([$invoice->getInvoiceToken(), $invoice_token]);
+
+        // Rediriger vers la page de paiement
+        header('Location: ' . $invoice->getInvoiceUrl());
+        exit;
+    } else {
+        $error = "Erreur lors de la création de la facture : " . $invoice->response_text;
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -152,21 +207,6 @@ $social_shop_url = "https://ecommerce.paydunya.com/applovinpaiementmobilemoney?p
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
         }
 
-        .progress-container {
-            height: 8px;
-            background-color: #e9ecef;
-            border-radius: 4px;
-            margin: 1rem 0;
-        }
-
-        .progress-bar {
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-            height: 100%;
-            border-radius: 4px;
-            width: 0;
-            transition: width 2s ease;
-        }
-
         .tab-content {
             padding: 1.5rem 0;
         }
@@ -234,6 +274,15 @@ $social_shop_url = "https://ecommerce.paydunya.com/applovinpaiementmobilemoney?p
 
         .error-container a:hover {
             text-decoration: none;
+        }
+
+        .error-message {
+            color: #721c24;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 1rem;
         }
     </style>
 </head>
@@ -328,7 +377,6 @@ $social_shop_url = "https://ecommerce.paydunya.com/applovinpaiementmobilemoney?p
 
                                 <div id="nowpayments-widget" class="text-center mt-4">
                                     <p>Montant à payer: <strong><?= number_format($plan['amount'], 2) ?> USDT</strong></p>
-                                    
                                     <div class="nowpayments-badge mt-2">
                                         <i class="fas fa-lock me-1"></i> Paiement sécurisé par NowPayments
                                     </div>
@@ -339,16 +387,21 @@ $social_shop_url = "https://ecommerce.paydunya.com/applovinpaiementmobilemoney?p
                                 <div class="text-center mb-4">
                                     <i class="fas fa-mobile-alt payment-icon"></i>
                                     <h4>Paiement Mobile Money</h4>
-                                    <p class="text-muted">Accédez à la boutique pour effectuer votre paiement</p>
+                                    <p class="text-muted">Confirmez votre investissement via PayDunya</p>
                                 </div>
-                                <div class="text-center">
-                                    <a href="<?= htmlspecialchars($social_shop_url) ?>" target="_blank" class="btn btn-payment btn-lg">
-                                        <i class="fas fa-shopping-cart me-2"></i> Aller à la boutique APPlovin Invest Shop
-                                    </a>
+                                <?php if (isset($error)): ?>
+                                    <div class="error-message"><?php echo htmlspecialchars($error); ?></div>
+                                <?php endif; ?>
+                                <form method="POST" class="text-center">
+                                    <input type="hidden" name="pay_mobile" value="1">
+                                    <p>Montant à payer: <strong><?= number_format($xof_amount) ?> XOF</strong></p>
+                                    <button type="submit" class="btn btn-payment btn-lg">
+                                        <i class="fas fa-money-bill-wave me-2"></i> Payer avec Mobile Money
+                                    </button>
                                     <div class="paydunya-badge mt-2">
                                         <i class="fas fa-lock me-1"></i> Paiement sécurisé par PayDunya
                                     </div>
-                                </div>
+                                </form>
                             </div>
                         </div>
 
@@ -422,99 +475,6 @@ $social_shop_url = "https://ecommerce.paydunya.com/applovinpaiementmobilemoney?p
                     $(`#${method}`).prop('checked', true);
                 }
 
-                $('#initCryptoPayment').click(function() {
-                    if (!checkModalExistence()) {
-                        showErrorModal('Erreur système : Impossible d\'initialiser le paiement. Veuillez actualiser la page.');
-                        return;
-                    }
-
-                    const network = $('input[name="cryptoNetwork"]:checked').val();
-                    const paymentLink = network === 'erc20' ? '<?= $plan["erc20_link"] ?>' : '<?= $plan["bep20_link"] ?>';
-
-                    $.ajax({
-                        url: 'create_payment.php',
-                        method: 'POST',
-                        data: {
-                            payment_id: '<?= $payment_id ?>',
-                            plan_id: <?= $plan_id ?>,
-                            amount: <?= $plan['amount'] ?>,
-                            network: network,
-                            status: 'pending'
-                        },
-                        success: function(response) {
-                            console.log('Réponse NowPayments :', response);
-                            if (response.success) {
-                                const nowpaymentsModal = new bootstrap.Modal(document.getElementById('nowpaymentsModal'));
-                                $('#nowpaymentsModalBody').html(`
-                                    <p>Vous allez être redirigé pour payer <strong><?= number_format($plan['amount'], 2) ?> USDT</strong> via ${network.toUpperCase()}.</p>
-                                    <div class="alert alert-info">
-                                        <p><strong>ID de paiement:</strong> <?= $payment_id ?></p>
-                                        <p>Conservez cet ID en cas de problème.</p>
-                                    </div>
-                                    <p>Vérification automatique dans <span id="countdown">30</span> secondes...</p>
-                                `);
-                                $('#confirmNowPayments').attr('href', paymentLink);
-                                nowpaymentsModal.show();
-                                startPaymentVerification('<?= $payment_id ?>');
-                            } else {
-                                showErrorModal(response.message || 'Erreur lors de la création de la transaction.');
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Erreur AJAX (NowPayments) :', xhr.responseText);
-                            showErrorModal('Erreur de connexion au serveur (NowPayments) : ' + xhr.status + ' - ' + xhr.statusText);
-                        }
-                    });
-                });
-
-                function startPaymentVerification(payment_id) {
-                    let countdown = 30;
-                    const countdownElement = $('#countdown');
-                    const countdownInterval = setInterval(() => {
-                        countdown--;
-                        countdownElement.text(countdown);
-
-                        if (countdown <= 0) {
-                            clearInterval(countdownInterval);
-                            verifyPayment(payment_id);
-                        }
-                    }, 1000);
-                }
-
-                function verifyPayment(payment_id) {
-                    $.ajax({
-                        url: 'verify_payment.php',
-                        method: 'POST',
-                        data: { payment_id: payment_id },
-                        success: function(response) {
-                            console.log('Vérification NowPayments :', response);
-                            if (response.status === 'completed') {
-                                $('#nowpaymentsModalBody').html(`
-                                    <div class="text-center py-4">
-                                        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
-                                        <h4>Paiement confirmé!</h4>
-                                        <p>Votre investissement de ${response.amount} USDT a été validé.</p>
-                                        <a href="dashboard.php" class="btn btn-primary">Aller au tableau de bord</a>
-                                    </div>
-                                `);
-                                $('#confirmNowPayments').hide();
-                            } else {
-                                $('#nowpaymentsModalBody').html(`
-                                    <div class="alert alert-warning">
-                                        <p>Paiement non encore confirmé. Vérification automatique dans <span id="countdown">30</span> secondes...</p>
-                                        <p>Si vous avez déjà payé, le système détectera bientôt votre paiement.</p>
-                                    </div>
-                                `);
-                                startPaymentVerification(payment_id);
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Erreur vérification NowPayments :', xhr.responseText);
-                            showErrorModal('Erreur lors de la vérification du paiement : ' + xhr.status + ' - ' + xhr.statusText);
-                        }
-                    });
-                }
-
                 $('.btn-payment-network').click(function(e) {
                     e.preventDefault();
                     const paymentLink = $(this).attr('href');
@@ -535,5 +495,6 @@ $social_shop_url = "https://ecommerce.paydunya.com/applovinpaiementmobilemoney?p
                 });
             });
         </script>
+    </div>
 </body>
 </html>
