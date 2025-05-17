@@ -4,9 +4,9 @@ require_once 'includes/config.php';
 require_once 'includes/db.php';
 
 // Inclure manuellement les fichiers PayDunya (ajustez le chemin selon l'emplacement réel)
-require_once __DIR__ . '/lib/paydunya-php-master/src/Paydunya/Setup.php';
-require_once __DIR__ . '/lib/paydunya-php-master/src/Paydunya/Store.php';
-require_once __DIR__ . '/lib/paydunya-php-master/src/Paydunya/Checkout/CheckoutInvoice.php';
+require_once __DIR__ . '/lib/paydunya-php-master/paydunya/Setup.php';
+require_once __DIR__ . '/lib/paydunya-php-master/paydunya/checkout/Store.php';
+require_once __DIR__ . '/lib/paydunya-php-master/paydunya/checkout/checkout_invoice.php';
 
 // Activation du mode debug
 error_reporting(E_ALL);
