@@ -19,6 +19,7 @@ RUN apt-get update && \
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
+
 COPY nginx.conf /etc/nginx/nginx.conf
 
 
@@ -27,3 +28,9 @@ COPY . /var/www/html
 
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
+
+
+EXPOSE 80
+
+
+CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
