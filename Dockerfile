@@ -7,13 +7,13 @@ RUN apt-get update && \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
-    libmariadb-dev \
+    default-libmysqlclient-dev \
     zip \
     unzip \
     git \
     curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd pdo_mysql mbstring \
+    && docker-php-ext-install -j$(nproc) gd pdo_mysql mbstring curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,10 +25,10 @@ COPY . /var/www/html
 
 
 WORKDIR /var/www/html
-RUN composer install --no-dev --optimize-autoloader
-
+RUN composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=512M
 
 COPY nginx.conf /etc/nginx/nginx.conf
+
 
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
