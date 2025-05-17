@@ -4,7 +4,7 @@ require_once 'includes/db.php';
 require_once 'includes/auth.php';
 require_once 'includes/functions.php;
 
-// Si l'utilisateur est déjà connecté, rediriger vers le dashboard approprié
+
 if (isset($_SESSION['user_id'])) {
     if (isset($_SESSION['is_admin']) && $_SESSION['is_admin']) {
         header("Location: admin/dashboard.php");
