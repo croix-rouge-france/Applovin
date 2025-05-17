@@ -14,7 +14,7 @@ class PaydunyaConfig {
     private $storeTagline = "applovin le meilleur";
     private $storePhoneNumber = "221770000000";
     private $storePostalAddress = "Dakar, Sénégal";
-    private $storeWebsiteUrl = "https://applovin.kesug.com/dashboard.php"; // Corrigé : URL valide
+    private $storeWebsiteUrl = "https://applovin-invest.onrender.com/dashboard.php"; // Corrigé : URL valide
     private $storeCallbackUrl = "/deposit.php?status=success"; // Corrigé : ajout du ;
 
     private function __construct() {
