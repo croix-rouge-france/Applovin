@@ -2,7 +2,11 @@
 session_start();
 require_once 'includes/config.php';
 require_once 'includes/db.php';
-require_once __DIR__ . '/vendor/autoload.php';
+
+// Charger manuellement les classes PayDunya
+require_once __DIR__ . '/lib/paydunya/src/Paydunya/Setup.php';
+require_once __DIR__ . '/lib/paydunya/src/Paydunya/Store.php';
+require_once __DIR__ . '/lib/paydunya/src/Paydunya/Checkout/CheckoutInvoice.php';
 
 // Activation du mode debug
 error_reporting(E_ALL);
