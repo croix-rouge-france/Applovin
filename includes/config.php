@@ -9,12 +9,26 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.use_strict_mode', 1);
 }  
 // CONFIGURATION BASE DE DONNÉES
-// ====================
-if (!defined('DB_HOST')) define('DB_HOST', 'mysql-18eb1c5a-adviserfinancial54-80f2.l.aivencloud.com');
-if (!defined('DB_USER')) define('DB_USER', 'avnadmin');
-if (!defined('DB_PASS')) define('DB_PASS', 'AVNS_CGN0rjVzbogydSu2O4O');
-if (!defined('DB_NAME')) define('DB_NAME', 'defaultdb');
+// =============================
+
+// Charger les variables d'environnement (si tu utilises dotenv)
+if (file_exists(__DIR__ . '/.env')) {
+    $lines = file(__DIR__ . '/.env');
+    foreach ($lines as $line) {
+        if (trim($line) && strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', trim($line), 2);
+            putenv("$key=$value");
+        }
+    }
+}
+
+// Définir les constantes de connexion MySQL
+if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+if (!defined('DB_USER')) define('DB_USER', getenv('DB_USER') ?: 'root');
+if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') ?: '');
+if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'defaultdb');
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
+
 
 // ====================
 // CONFIGURATION GÉNÉRALE
