@@ -2,3 +2,7 @@
 vendor/
 phpmyadmin/vendor/
 node_modules/
+/env
+*.log
+vendor/
+lib/paydunya-php/vendor/
