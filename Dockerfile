@@ -8,6 +8,7 @@ RUN apt-get update && \
     libjpeg-dev \
     libfreetype6-dev \
     default-libmysqlclient-dev \
+    libonig-dev \
     zip \
     unzip \
     git \
@@ -27,6 +28,7 @@ COPY . /var/www/html
 WORKDIR /var/www/html
 RUN composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=512M
 
+
 COPY nginx.conf /etc/nginx/nginx.conf
 
 
@@ -35,6 +37,9 @@ RUN chown -R www-data:www-data /var/www/html \
 
 
 EXPOSE 80
+
+
+CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
 
 
 CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
