@@ -9,6 +9,7 @@ RUN apt-get update && \
     libfreetype6-dev \
     default-libmysqlclient-dev \
     libonig-dev \
+    libcurl4-openssl-dev \
     zip \
     unzip \
     git \
@@ -42,4 +43,3 @@ EXPOSE 80
 CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
 
 
-CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
