@@ -95,7 +95,6 @@ $invoice->addChannels([
     'moov-togo',
     't-money-togo',
     'orange-money-burkina',
-    'orange-money-mali'
 ]);
 
 // Ajouter des données personnalisées
