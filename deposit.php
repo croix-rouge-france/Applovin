@@ -3,6 +3,10 @@ session_start();
 require_once 'includes/config.php';
 require_once 'includes/db.php';
 
+use Paydunya\Setup;
+use Paydunya\Checkout\Store;
+use Paydunya\Checkout\CheckoutInvoice;
+
 // Inclure manuellement les fichiers PayDunya (ajustez le chemin selon l'emplacement réel)
 require_once __DIR__ . '/vendor/autoload.php';
 
@@ -52,8 +56,6 @@ if (!defined('EXCHANGE_RATE') || EXCHANGE_RATE <= 0) {
 // Générer un ID unique pour ce paiement
 $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4));
 
-// Configurer PayDunya
-use Paydunya\Setup;
 
 // Configurer Paydunya avec les clés
 Setup::setMasterKey(getenv('PAYDUNYA_MASTER_KEY'));
