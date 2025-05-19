@@ -1,7 +1,7 @@
 FROM debian:bullseye
 
 RUN apt-get update && apt-get install -y \
-    apt-transport-https ca-certificates software-properties-common lsb-release wget curl \
+    apt-transport-https ca-certificates software-properties-common lsb-release wget curl git unzip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list \
