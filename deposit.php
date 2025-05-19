@@ -86,7 +86,7 @@ $invoice->addCustomData('transaction_type', 'deposit');
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
     try {
         // Connexion à la base de données
-        $pdo = getDbConnection();
+        $db = Database::getInstance()->getConnection();
 
         // Enregistrer la transaction en attente
         $invoice_token = uniqid('inv_');
