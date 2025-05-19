@@ -1,5 +1,6 @@
 <?php
 require_once 'db.php';
+$db = Database::getInstance()->getConnection(); // Assure l'initialisation correcte
 
 
 
