@@ -115,6 +115,22 @@ try {
                         'ivory_coast' => 'moov-money-ci',
                         'benin' => 'moov-money-benin',
                         'togo' => 'flooz-togo'
+                    ],
+                    'Wave' => [
+                        'senegal' => 'wave-senegal',
+                        'ivory_coast' => 'wave-ci'
+                    ],
+                    'Free' => [
+                        'senegal' => 'free-money-senegal'
+                    ],
+                    'Expresso' => [
+                        'senegal' => 'expresso-sn'
+                    ],
+                    'Togocel' => [
+                        'togo' => 't-money-togo'
+                    ],
+                    'MobiCash' => [
+                        'burkina_faso' => 'mobi-cash-burkina'
                     ]
                 ];
 
@@ -139,9 +155,10 @@ try {
                         $transaction_id = $response['transaction_id'] ?? null;
                         $success = "Retrait initié avec succès. Traitement en cours.";
                     } else {
-                        // Fallback : essayer avec un autre canal si disponible
-                        $fallback_channel = 'orange-money-senegal'; // Canal de secours
+                        // Fallback : essayer avec un canal universel
+                        $fallback_channel = 'orange-money-senegal';
                         if ($channel !== $fallback_channel) {
+                            error_log("Erreur PayDunya canal initial: {$channel}, message: " . ($response['message'] ?? 'Inconnu'));
                             $payout_data['channel'] = $fallback_channel;
                             $response = $disbursement->createDisbursement($payout_data);
                             if ($response['success']) {
@@ -149,7 +166,7 @@ try {
                                 $transaction_id = $response['transaction_id'] ?? null;
                                 $success = "Retrait initié avec succès via canal de secours.";
                             } else {
-                                throw new Exception("Erreur PayDunya: " . ($response['message'] ?? 'Échec du paiement'));
+                                throw new Exception("Erreur PayDunya (secours): " . ($response['message'] ?? 'Échec du paiement'));
                             }
                         } else {
                             throw new Exception("Erreur PayDunya: " . ($response['message'] ?? 'Échec du paiement'));
@@ -342,6 +359,11 @@ require_once 'includes/header.php';
                                         <option value="Orange">Orange Money</option>
                                         <option value="MTN">MTN Mobile Money</option>
                                         <option value="Moov">Moov Money</option>
+                                        <option value="Wave">Wave</option>
+                                        <option value="Free">Free Money</option>
+                                        <option value="Expresso">Expresso</option>
+                                        <option value="Togocel">Togocel T-Money</option>
+                                        <option value="MobiCash">MobiCash</option>
                                     </select>
                                 </div>
                                 
@@ -374,6 +396,7 @@ require_once 'includes/header.php';
                                     <th>Méthode</th>
                                     <th>Montant</th>
                                     <th>Réseau</th>
+                                    <th>Pays</th>
                                     <th>Détails</th>
                                     <th>Statut</th>
                                     <th>Transaction ID</th>
@@ -386,6 +409,7 @@ require_once 'includes/header.php';
                                     <td><?= $withdrawal['method'] === 'usdt' ? 'USDT' : 'Mobile Money' ?></td>
                                     <td>$<?= number_format($withdrawal['amount'], 2) ?></td>
                                     <td><?= htmlspecialchars($withdrawal['network'] ?? 'N/A') ?></td>
+                                    <td><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $withdrawal['country'] ?? 'N/A'))) ?></td>
                                     <td>
                                         <?php if ($withdrawal['method'] === 'usdt'): ?>
                                             Adresse: <?= htmlspecialchars($withdrawal['wallet_address'] ?? 'Non spécifié') ?>
@@ -407,7 +431,7 @@ require_once 'includes/header.php';
                                 <?php endforeach; ?>
                                 <?php if (empty($withdrawals)): ?>
                                 <tr>
-                                    <td colspan="7" class="text-center">Aucun retrait effectué</td>
+                                    <td colspan="8" class="text-center">Aucun retrait effectué</td>
                                 </tr>
                                 <?php endif; ?>
                             </tbody>
