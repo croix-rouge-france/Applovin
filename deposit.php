@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
         if ($invoice->create()) {
             // Mettre à jour le token réel
             $stmt = $db->prepare("UPDATE deposits SET invoice_token = ? WHERE invoice_token = ?");
-            $stmt->execute([$invoice->getInvoiceToken(), $invoice_token]);
+            $stmt->execute([$invoice->token, $invoice_token]); // Changed getInvoiceToken() to token
 
             // Journaliser la création réussie
             file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Facture créée, URL: " . $invoice->getInvoiceUrl() . PHP_EOL, FILE_APPEND);
