@@ -76,7 +76,7 @@ $invoice->setTotalAmount($xof_amount);
 $invoice->setDescription("Paiement pour plan d'investissement $plan_id");
 $invoice->addChannels([
     // Senegal
-    'orange-money-senable',
+    
     'wave-senegal',
     'free-money-senegal',
     // Ivory Coast
