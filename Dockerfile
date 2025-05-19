@@ -3,6 +3,7 @@ FROM php:8.2-fpm-bullseye
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    build-essential \
     nginx \
     libpng-dev \
     libjpeg-dev \
@@ -16,12 +17,13 @@ RUN apt-get update && \
     curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd pdo_mysql mbstring curl openssl json \
+    && apt-get purge -y --auto-remove build-essential \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
-    && composer --version
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
+    composer --version
 
 
 COPY . /var/www/html
@@ -43,5 +45,4 @@ EXPOSE 80
 
 
 CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
-
 
