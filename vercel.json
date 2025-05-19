@@ -1,0 +1,27 @@
+{
+    "version": 2,
+    "framework": null,
+    "functions": {
+        "*.php": {
+            "runtime": "vercel-php@0.7.1"
+        }
+    },
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "/deposit.php"
+        }
+    ],
+    "env": {
+        "PAYDUNYA_MASTER_KEY": "@paydunya_master_key",
+        "PAYDUNYA_PRIVATE_KEY": "@paydunya_private_key",
+        "PAYDUNYA_PUBLIC_KEY": "@paydunya_public_key",
+        "PAYDUNYA_TOKEN": "@paydunya_token",
+        "DB_HOST": "@db_host",
+        "DB_PORT": "@db_port",
+        "DB_NAME": "@db_name",
+        "DB_USER": "@db_user",
+        "DB_PASS": "@db_pass",
+        "EXCHANGE_RATE": "600"
+    }
+}
