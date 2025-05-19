@@ -23,10 +23,10 @@ if (file_exists(__DIR__ . '/.env')) {
 }
 
 // Définir les constantes de connexion MySQL
-if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: 'mysql-applovin.alwaysdata.net');
 if (!defined('DB_USER')) define('DB_USER', getenv('DB_USER') ?: 'root');
 if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') ?: '');
-if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'defaultdb');
+if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'applovin_db');
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
 
 
