@@ -74,7 +74,30 @@ $invoice = new CheckoutInvoice();
 $invoice->addItem("Plan Investissement $plan_id", 1, $xof_amount, $xof_amount, "Dépôt pour Applovin Plan $plan_id");
 $invoice->setTotalAmount($xof_amount);
 $invoice->setDescription("Paiement pour plan d'investissement $plan_id");
-$invoice->addChannels(['orange-money-senegal', 'wave-senegal']); // Canaux Mobile Money
+$invoice->addChannels([
+    // Senegal
+    'orange-money-senable',
+    'wave-senegal',
+    'free-money-senegal',
+    // Ivory Coast
+    'orange-money-ci',
+    'mtn-money-ci',
+    'moov-money-ci',
+    'wave-ci',
+    // Benin
+    'mtn-money-benin',
+    'moov-money-benin',
+    // Togo
+    'flooz-togo',
+    't-money-togo',
+    // Burkina Faso
+    'orange-money-burkina',
+    'mobi-cash-burkina',
+    // Mali
+    'orange-money-mali',
+    // Universal
+    'card'
+]); // Canaux Mobile Money
 
 // Ajouter des données personnalisées
 $invoice->addCustomData('user_id', $_SESSION['user_id']);
