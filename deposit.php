@@ -61,40 +61,39 @@ $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4
 
 
 
-// Configurer Paydunya avec les clés
-Setup::setMasterKey(getenv('PAYDUNYA_MASTER_KEY') ?: throw new Exception('PAYDUNYA_MASTER_KEY manquant'));
-Setup::setPublicKey(getenv('PAYDUNYA_PUBLIC_KEY') ?: throw new Exception('PAYDUNYA_PUBLIC_KEY manquant'));
-Setup::setPrivateKey(getenv('PAYDUNYA_PRIVATE_KEY') ?: throw new Exception('PAYDUNYA_PRIVATE_KEY manquant'));
-Setup::setToken(getenv('PAYDUNYA_TOKEN') ?: throw new Exception('PAYDUNYA_TOKEN manquant'));
-Setup::setMode('live'); // 'test' pour tests, 'live' pour production
+// ne jamais configurer vos clés api en code dur conseil de Mr Hokague
+Setup::setMasterKey('61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP'); // Remplacer par la vraie clé celle ci a été utilisé en guise d'exemple 
+Setup::setPublicKey('live_public_5Uhdeo8oxHpBR5CwevG4juyZ4yF'); // Remplacer par la vraie clé
+Setup::setPrivateKey('live_private_omjNDYClxSRu8KZoDBSvLRo4QEm'); // Remplacer par la vraie clé
+Setup::setToken('X7R67BRbIbnthZ7BTyPr'); // Remplacer par la vraie clé
+Setup::setMode('live'); // 'live' pour production
 
-// Configurer le magasin
+// Configurer la boutique
 Store::setName('Applovin');
 Store::setTagline('Investissement et Mobile Money');
-Store::setPhoneNumber('+9238846728'); // Format international
+Store::setPhoneNumber('+9238846728');
 Store::setWebsiteUrl('https://applovin-invest.onrender.com');
 Store::setLogoUrl('https://applovin-invest.onrender.com/logo.png');
 Store::setCallbackUrl('https://applovin-invest.onrender.com/callback.php');
-Store::setCancelUrl('https://applovin-invest.onrender.com/cancel.php'); // URL pour annulation
-Store::setReturnUrl('https://applovin-invest.onrender.com/success.php'); // URL après succès
+Store::setCancelUrl('https://applovin-invest.onrender.com/cancel.php');
+Store::setReturnUrl('https://applovin-invest.onrender.com/success.php');
 
 // Créer une facture
 $invoice = new CheckoutInvoice();
 $plan_id = isset($_GET['plan_id']) ? (int)$_GET['plan_id'] : 1;
-$xof_amount = $plan_id === 1 ? 10000 : 20000; // Montant en XOF
-
-// Ajouter un article
+$xof_amount = $plan_id === 1 ? 10000 : 20000;
 $invoice->addItem("Plan Investissement $plan_id", 1, $xof_amount, $xof_amount, 'Dépôt pour Applovin');
 $invoice->setTotalAmount($xof_amount);
 $invoice->setDescription("Paiement pour plan d'investissement $plan_id");
 
-
+// Restreindre les moyens de paiement (optionnel)
+$invoice->addChannels(['card', 'orange-money-senegal', 'wave-senegal']);
 
 // Traiter le paiement Mobile Money
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
     session_start();
     $user_id = $_SESSION['user_id'] ?? throw new Exception('Utilisateur non connecté');
-    $payment_id = uniqid('pay_'); // ID unique pour la transaction
+    $payment_id = uniqid('pay_');
 
     // Ajouter des données personnalisées
     $invoice->addCustomData('user_id', $user_id);
@@ -117,22 +116,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
 
     // Créer la facture PayDunya
     if ($invoice->create()) {
-        // Mettre à jour le token réel
         $stmt = $pdo->prepare("UPDATE deposits SET invoice_token = ? WHERE invoice_token = ?");
         $stmt->execute([$invoice->getInvoiceToken(), $invoice_token]);
-
-        // Rediriger vers la page de paiement
         header('Location: ' . $invoice->getInvoiceUrl());
         exit;
     } else {
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . ' : ' . $invoice->response_text . PHP_EOL, FILE_APPEND);
         die("Erreur lors de la création de la facture : " . $invoice->response_text);
     }
 } else {
-    // GET : Afficher la page ou rediriger
+    // GET : Créer la facture pour redirection
     if ($invoice->create()) {
         header('Location: ' . $invoice->getInvoiceUrl());
         exit;
     } else {
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . ' : ' . $invoice->response_text . PHP_EOL, FILE_APPEND);
         die('Erreur Paydunya : ' . $invoice->response_text);
     }
 }
