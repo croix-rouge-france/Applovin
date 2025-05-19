@@ -58,7 +58,7 @@ $setup = new \Paydunya\Setup([
     'privateKey' => getenv('PAYDUNYA_PRIVATE_KEY'),
     'publicKey' => getenv('PAYDUNYA_PUBLIC_KEY'),
     'token' => getenv('PAYDUNYA_TOKEN'),
-    'mode' => 'test' // Utiliser 'live' en production
+    'mode' => 'live' // Utiliser 'live' en production
 ]);
 
 $store = new \Paydunya\Store([
