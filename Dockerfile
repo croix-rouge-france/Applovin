@@ -1,58 +1,52 @@
 FROM debian:bullseye
 
-# Installation des dépendances système
+# Installer les outils pour ajouter le dépôt
 RUN apt-get update && apt-get install -y \
     apt-transport-https \
     ca-certificates \
-    gnupg \
+    software-properties-common \
     lsb-release \
-    curl \
     wget \
-    unzip \
-    git \
-    nginx \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Ajout du dépôt PHP de Sury
-RUN curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg \
-    && echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
+# Ajouter le dépôt Ondřej Surý pour PHP
+RUN echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list \
+    && wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
 
-# Installation de PHP 8.2 et des extensions nécessaires
+# Installer PHP 8.2 et les extensions nécessaires
 RUN apt-get update && apt-get install -y \
-    php8.2 \
+    nginx \
     php8.2-fpm \
-    php8.2-cli \
     php8.2-gd \
     php8.2-mysql \
     php8.2-mbstring \
     php8.2-curl \
-    php8.2-xml \
-    php8.2-bcmath \
-    php8.2-gmp \
     && rm -rf /var/lib/apt/lists/*
 
-# Installation de Composer
+# Créer le dossier pour le socket PHP-FPM
+RUN mkdir -p /run/php && chown www-data:www-data /run/php
+
+# Installer Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Définition du répertoire de travail
-WORKDIR /var/www/html
-
-# Copie des fichiers de l'application
+# Copier le code de l'application
 COPY . /var/www/html
 
-# Installation des dépendances PHP via Composer
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Exécuter l'installation de Composer
+WORKDIR /var/www/html
+RUN composer install --no-dev --optimize-autoloader --no-interaction --verbose
 
-# Configuration des permissions
-RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
-
-# Copie de la configuration Nginx
+# Configurer Nginx
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Exposition du port 80
+# Définir les permissions
+RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
+
+# Exposer le port
 EXPOSE 80
 
-# Commande de démarrage
-CMD ["sh", "-c", "php-fpm8.2 -D && nginx -g 'daemon off;'"]
+# Démarrer les services
+CMD ["sh", "-c", "service php8.2-fpm start && nginx -g 'daemon off;'"]
 
 
