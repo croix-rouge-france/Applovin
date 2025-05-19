@@ -53,13 +53,14 @@ if (!defined('EXCHANGE_RATE') || EXCHANGE_RATE <= 0) {
 $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4));
 
 // Configurer PayDunya
-$setup = new \Paydunya\Setup([
-    'masterKey' => getenv('PAYDUNYA_MASTER_KEY'),
-    'privateKey' => getenv('PAYDUNYA_PRIVATE_KEY'),
-    'publicKey' => getenv('PAYDUNYA_PUBLIC_KEY'),
-    'token' => getenv('PAYDUNYA_TOKEN'),
-    'mode' => 'live' // Utiliser 'live' en production
-]);
+use Paydunya\Setup;
+
+// Configurer Paydunya avec les clés
+Setup::setMasterKey(getenv('PAYDUNYA_MASTER_KEY'));
+Setup::setPublicKey(getenv('PAYDUNYA_PUBLIC_KEY'));
+Setup::setPrivateKey(getenv('PAYDUNYA_PRIVATE_KEY'));
+Setup::setToken(getenv('PAYDUNYA_TOKEN'));
+Setup::setMode('live');
 
 $store = new \Paydunya\Store([
     'name' => 'Applovin Store',
