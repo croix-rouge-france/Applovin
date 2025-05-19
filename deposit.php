@@ -79,7 +79,6 @@ $invoice->addChannels([
     'wave-senegal',
     'free-money-senegal',
     'orange-money-ci',
-    'mtn-money-ci',
     'moov-money-ci',
     'wave-ci',
     'mtn-money-benin',
@@ -89,7 +88,7 @@ $invoice->addChannels([
     'orange-money-burkina',
     'mobi-cash-burkina',
     'orange-money-mali',
-    
+    'card'
 ]); // Canaux Mobile Money
 
 // Ajouter des données personnalisées
