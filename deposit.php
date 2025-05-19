@@ -64,9 +64,9 @@ $setup = new \Paydunya\Setup([
 $store = new \Paydunya\Store([
     'name' => 'Applovin Store',
     'tagline' => 'Investissez facilement',
-    'returnURL' => 'https://<votre-domaine-render>.onrender.com/return.php',
-    'cancelURL' => 'https://<votre-domaine-render>.onrender.com/cancel.php',
-    'callbackURL' => 'https://<votre-domaine-render>.onrender.com/callback.php'
+    'returnURL' => 'https://applovin-invest.onrender.com/return.php',
+    'cancelURL' => 'https://applovin-invest.onrender.com/cancel.php',
+    'callbackURL' => 'https://applovin-invest.onrender.com/callback.php'
 ]);
 
 $invoice = new \Paydunya\Checkout\CheckoutInvoice($setup, $store);
