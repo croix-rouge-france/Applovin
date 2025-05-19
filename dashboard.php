@@ -850,7 +850,7 @@ require_once 'includes/header.php';
     }
     
     // Rafraîchir les données toutes les 10 secondes
-    setInterval(refreshData, 30000);
+    setInterval(refreshData, 300000);
     </script>
 </body>
 </html>
