@@ -1,51 +1,28 @@
-FROM php:8.2-fpm-bullseye
+FROM debian:bullseye
 
 
-RUN apt-get update --fix-missing || apt-get update --fix-missing && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
+RUN apt-get update && apt-get install -y \
     nginx \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    default-libmysqlclient-dev \
-    libonig-dev \
-    libcurl4-openssl-dev \
-    libssl-dev \
-    libwebp-dev \
-    libxpm-dev \
-    pkg-config \
-    zip \
-    unzip \
-    git \
-    curl \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-xpm \
-    && docker-php-ext-install -j$(nproc) gd pdo_mysql mbstring curl openssl json \
-    && apt-get purge -y --auto-remove build-essential \
-    && apt-get clean \
+    php8.2-fpm \
+    php8.2-gd \
+    php8.2-pdo-mysql \
+    php8.2-mbstring \
+    php8.2-curl \
+    php8.2-openssl \
+    php8.2-json \
     && rm -rf /var/lib/apt/lists/*
-
-
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
-    composer --version
 
 
 COPY . /var/www/html
 
 
-WORKDIR /var/www/html
-RUN composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=1G --verbose || \
-    composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=1G --verbose
-
-
 COPY nginx.conf /etc/nginx/nginx.conf
 
 
-RUN chown -R www-data:www-data /var/www/html && \
-    chmod -R 755 /var/www/html
+RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
 
 EXPOSE 80
 
 
-CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "service php8.2-fpm start && nginx -g 'daemon off;'"]
