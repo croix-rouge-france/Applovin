@@ -1,15 +1,19 @@
 <?php
+// Démarrer la session
 session_start();
+
+// Activer le mode debug (à désactiver en production)
+error_reporting(E_ALL & ~E_DEPRECATED);
+ini_set('display_errors', 1);
+
+// Inclure les dépendances
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/db.php';
+
 use Paydunya\Setup;
 use Paydunya\Checkout\Store;
 use Paydunya\Checkout\CheckoutInvoice;
-
-// Activer le mode debug (supprimer en production)
-error_reporting(E_ALL & ~E_DEPRECATED);
-ini_set('display_errors', 1);
 
 // Vérifier si l'utilisateur est connecté
 if (!isset($_SESSION['user_id'])) {
@@ -38,8 +42,9 @@ if (!array_key_exists($plan_id, $investment_plans) || $plan_id <= 0) {
     exit;
 }
 
+// Calculer le montant et le rendement
 $plan = $investment_plans[$plan_id];
-$xof_amount = $plan['amount'] * (defined('EXCHANGE_RATE') ? EXCHANGE_RATE : 600); // Fallback à 600 si non défini
+$xof_amount = $plan['amount'] * (defined('EXCHANGE_RATE') ? EXCHANGE_RATE : 600);
 $daily_earning = $plan['amount'] * $plan['daily_return'] / 100;
 
 // Vérifier EXCHANGE_RATE
@@ -52,14 +57,15 @@ if (!defined('EXCHANGE_RATE') || EXCHANGE_RATE <= 0) {
 // Générer un ID unique pour le paiement
 $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4));
 
-// ne jamais configurer vos clés api en code dur conseil de Mr Hokague
-Setup::setMasterKey('61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP'); // Remplacer par la vraie clé celle ci a été utilisé en guise d'exemple 
-Setup::setPublicKey('live_public_5Uhdeo8oxHpBR5CwevG4juyZ4yF'); // Remplacer par la vraie clé
-Setup::setPrivateKey('live_private_omjNDYClxSRu8KZoDBSvLRo4QEm'); // Remplacer par la vraie clé
-Setup::setToken('X7R67BRbIbnthZ7BTyPr'); // Remplacer par la vraie clé
-Setup::setMode('live'); // 'live' pour production
+// Configurer PayDunya
+// TODO: Déplacer ces clés vers config.php pour des raisons de sécurité
+Setup::setMasterKey('61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP'); // Exemple, à remplacer
+Setup::setPublicKey('live_public_5Uhdeo8oxHpBR5CwevG4juyZ4yF'); // Exemple, à remplacer
+Setup::setPrivateKey('live_private_omjNDYClxSRu8KZoDBSvLRo4QEm'); // Exemple, à remplacer
+Setup::setToken('X7R67BRbIbnthZ7BTyPr'); // Exemple, à remplacer
+Setup::setMode('live'); // 'test' pour développement, 'live' pour production
 
-// Configurer la boutique
+// Configurer la boutique PayDunya
 Store::setName('Applovin');
 Store::setTagline('Investissement et Mobile Money');
 Store::setPhoneNumber('+9238846728');
@@ -69,19 +75,21 @@ Store::setCallbackUrl('https://applovin-invest.onrender.com/callback.php');
 Store::setCancelUrl('https://applovin-invest.onrender.com/cancel.php');
 Store::setReturnUrl('https://applovin-invest.onrender.com/success.php');
 
-// Créer une facture
+// Créer une facture PayDunya
 $invoice = new CheckoutInvoice();
 $invoice->addItem("Plan Investissement $plan_id", 1, $xof_amount, $xof_amount, "Dépôt pour Applovin Plan $plan_id");
 $invoice->setTotalAmount($xof_amount);
 $invoice->setDescription("Paiement pour plan d'investissement $plan_id");
+
+// Définir les canaux de paiement valides
 $invoice->addChannels([
-   $invoice->addChannels([
+    'card',
     'orange-money-senegal',
     'wave-senegal',
-    
+    'free-money-senegal',
     'expresso-sn',
     'orange-money-ci',
-    
+    'moov-money-ci',
     'wave-ci',
     'mtn-benin',
     'moov-money-benin',
@@ -89,9 +97,8 @@ $invoice->addChannels([
     't-money-togo',
     'orange-money-burkina',
     'mobi-cash-burkina',
-    'orange-money-mali',
+    'orange-money-mali'
 ]);
-
 
 // Ajouter des données personnalisées
 $invoice->addCustomData('user_id', $_SESSION['user_id']);
@@ -114,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
         if ($invoice->create()) {
             // Mettre à jour le token réel
             $stmt = $db->prepare("UPDATE deposits SET invoice_token = ? WHERE invoice_token = ?");
-            $stmt->execute([$invoice->token, $invoice_token]); // Changed getInvoiceToken() to token
+            $stmt->execute([$invoice->token, $invoice_token]);
 
             // Journaliser la création réussie
             file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Facture créée, URL: " . $invoice->getInvoiceUrl() . PHP_EOL, FILE_APPEND);
@@ -125,14 +132,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
         } else {
             $error = "Erreur lors de la création de la facture : " . $invoice->response_text;
             file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur PayDunya : " . $invoice->response_text . PHP_EOL, FILE_APPEND);
+            echo '<div class="error-container"><i class="fas fa-exclamation-triangle"></i> ' . htmlspecialchars($error) . '</div>';
         }
     } catch (Exception $e) {
         $error = "Erreur serveur : " . $e->getMessage();
         file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Exception : " . $e->getMessage() . PHP_EOL, FILE_APPEND);
+        echo '<div class="error-container"><i class="fas fa-exclamation-triangle"></i> ' . htmlspecialchars($error) . '</div>';
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
