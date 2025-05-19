@@ -64,15 +64,27 @@ Setup::setPrivateKey(getenv('PAYDUNYA_PRIVATE_KEY'));
 Setup::setToken(getenv('PAYDUNYA_TOKEN'));
 Setup::setMode('live');
 
-$store = new \Paydunya\Store([
-    'name' => 'Applovin Store',
-    'tagline' => 'Investissez facilement',
-    'returnURL' => 'https://applovin-invest.onrender.com/return.php',
-    'cancelURL' => 'https://applovin-invest.onrender.com/cancel.php',
-    'callbackURL' => 'https://applovin-invest.onrender.com/callback.php'
-]);
 
-$invoice = new \Paydunya\Checkout\CheckoutInvoice($setup, $store);
+Store::setName('Applovin');
+Store::setTagline('Investissement et Mobile Money');
+Store::setPhoneNumber('+92 038846728');
+Store::setWebsiteUrl('https://applovin-invest.onrender.com');
+Store::setLogoUrl('https://applovin-invest.onrender.com/logo.png');
+Store::setCallbackUrl('https://applovin-invest.onrender.com/callback.php');
+
+// Créer une facture
+$invoice = new CheckoutInvoice();
+$plan_id = isset($_GET['plan_id']) ? (int)$_GET['plan_id'] : 1;
+$amount = $plan_id === 1 ? 10000 : 20000; // Exemple
+$invoice->addItem('Plan Investissement', 1, $amount, $amount, 'Description du plan');
+$invoice->setTotalAmount($amount);
+
+if ($invoice->create()) {
+    header('Location: ' . $invoice->getInvoiceUrl());
+    exit;
+} else {
+    die('Erreur Paydunya : ' . $invoice->response_text);
+}
 
 // Traiter le paiement Mobile Money
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
