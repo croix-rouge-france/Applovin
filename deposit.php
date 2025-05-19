@@ -57,6 +57,12 @@ if (!defined('EXCHANGE_RATE') || EXCHANGE_RATE <= 0) {
 // Générer un ID unique pour ce paiement
 $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4));
 
+// Configurer Paydunya
+$masterKey = getenv('PAYDUNYA_MASTER_KEY') ?: throw new Exception('PAYDUNYA_MASTER_KEY manquant');
+$publicKey = getenv('PAYDUNYA_PUBLIC_KEY') ?: throw new Exception('PAYDUNYA_PUBLIC_KEY manquant');
+$privateKey = getenv('PAYDUNYA_PRIVATE_KEY') ?: throw new Exception('PAYDUNYA_PRIVATE_KEY manquant');
+$token = getenv('PAYDUNYA_TOKEN') ?: throw new Exception('PAYDUNYA_TOKEN manquant');
+
 
 // Configurer Paydunya avec les clés
 Setup::setMasterKey(getenv('PAYDUNYA_MASTER_KEY'));
