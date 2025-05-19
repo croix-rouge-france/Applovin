@@ -42,7 +42,7 @@ $investment_plans = [
 
 // Vérification si le plan existe
 if (!array_key_exists($plan_id, $investment_plans) || $plan_id <= 0) {
-    echo '<div class="error-container"><i class="fas fa-exclamation-triangle"></i> Erreur : Plan invalide ou non spécifié. <a href="investment.php">Retour aux plans</a></div>';
+    echo '<div class="error-container"><i class="fas fa-exclamation-triangle"></i> Erreur : Plan invalide ou non spécifié. <a href="dashboard.php">Retour aux plans</a></div>';
     exit;
 }
 
@@ -86,8 +86,7 @@ $invoice->addItem("Plan Investissement $plan_id", 1, $xof_amount, $xof_amount, '
 $invoice->setTotalAmount($xof_amount);
 $invoice->setDescription("Paiement pour plan d'investissement $plan_id");
 
-// Restreindre les moyens de paiement (optionnel)
-$invoice->addChannels(['card', 'orange-money-senegal', 'wave-senegal']);
+
 
 // Traiter le paiement Mobile Money
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
