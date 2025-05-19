@@ -86,8 +86,7 @@ $invoice->addItem("Plan Investissement $plan_id", 1, $xof_amount, $xof_amount, '
 $invoice->setTotalAmount($xof_amount);
 $invoice->setDescription("Paiement pour plan d'investissement $plan_id");
 
-// Restreindre les moyens de paiement (optionnel)
-$invoice->addChannels(['card', 'orange-money-senegal', 'wave-senegal']); // Selon vos besoins
+
 
 // Traiter le paiement Mobile Money
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
