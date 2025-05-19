@@ -75,28 +75,21 @@ $invoice->addItem("Plan Investissement $plan_id", 1, $xof_amount, $xof_amount, "
 $invoice->setTotalAmount($xof_amount);
 $invoice->setDescription("Paiement pour plan d'investissement $plan_id");
 $invoice->addChannels([
-    // Senegal
-    
+    'orange-money-senegal',
     'wave-senegal',
     'free-money-senegal',
-    // Ivory Coast
     'orange-money-ci',
     'mtn-money-ci',
     'moov-money-ci',
     'wave-ci',
-    // Benin
     'mtn-money-benin',
     'moov-money-benin',
-    // Togo
     'flooz-togo',
     't-money-togo',
-    // Burkina Faso
     'orange-money-burkina',
     'mobi-cash-burkina',
-    // Mali
     'orange-money-mali',
-    // Universal
-    'card'
+    
 ]); // Canaux Mobile Money
 
 // Ajouter des données personnalisées
