@@ -80,7 +80,6 @@ $invoice->addChannels([
     'free-money-senegal',
     'orange-money-ci',
     'wave-ci',
-    'mtn-money-benin',
     'moov-money-benin',
     'flooz-togo',
     't-money-togo',
