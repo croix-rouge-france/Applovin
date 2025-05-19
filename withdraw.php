@@ -1,23 +1,42 @@
 <?php
-// Activation du mode debug
+// Activation du mode debug (désactiver en production)
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
+// Inclure les dépendances
 require_once 'includes/config.php';
 require_once 'includes/db.php';
 require_once 'includes/auth.php';
 require_once 'includes/functions.php';
+require_once __DIR__ . '/vendor/autoload.php';
+
+use Paydunya\Setup;
+use Paydunya\Checkout\Store;
+use Paydunya\Checkout\DirectPay;
 
 // Vérification d'authentification
 try {
     check_auth();
-    
     if (!isset($_SESSION['user_id'])) {
         throw new Exception("Session utilisateur invalide");
     }
 
-    // Obtenir l'instance de PDO via la classe Database
+    // Configurer PayDunya pour les retraits
+    // TODO: Déplacer ces clés vers config.php
+    Setup::setMasterKey('61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP'); // Exemple
+    Setup::setPublicKey('live_public_5Uhdeo8oxHpBR5CwevG4juyZ4yF'); // Exemple
+    Setup::setPrivateKey('live_private_omjNDYClxSRu8KZoDBSvLRo4QEm'); // Exemple
+    Setup::setToken('X7R67BRbIbnthZ7BTyPr'); // Exemple
+    Setup::setMode('live'); // 'test' pour développement
+
+    Store::setName('Applovin');
+    Store::setTagline('Investissement et Mobile Money');
+    Store::setPhoneNumber('+9238846728');
+    Store::setWebsiteUrl('https://applovin-invest.onrender.com');
+    Store::setLogoUrl('https://applovin-invest.onrender.com/logo.png');
+
+    // Obtenir l'instance de PDO
     $db = Database::getInstance();
     $pdo = $db->getConnection();
 
@@ -25,7 +44,7 @@ try {
     $error = '';
     $success = '';
 
-    // Calcul du solde (version améliorée avec gestion d'erreur)
+    // Calcul du solde
     $balance = [
         'current' => 0,
         'invested' => 0,
@@ -33,7 +52,6 @@ try {
         'withdrawals' => 0,
         'bonus' => 0
     ];
-    
     try {
         $balance = calculate_user_balance($user_id);
         $balance['current'] = $balance['invested'] + $balance['profit'];
@@ -52,47 +70,118 @@ try {
             $method = $_POST['method'];
             $details = trim($_POST['details']);
             $network = $_POST['network'] ?? null;
+            $country = $_POST['country'] ?? 'senegal'; // Par défaut Sénégal
 
             // Validation
             if (!$can_withdraw) {
                 throw new Exception("Profit insuffisant (minimum 18% requis)");
             }
-
             if ($amount < 5) {
                 throw new Exception("Montant minimum: 5 USD");
             }
-
             if ($amount > $balance['profit']) {
                 throw new Exception("Montant supérieur à votre profit disponible");
             }
+            if (empty($details)) {
+                throw new Exception("Détails du paiement requis");
+            }
 
             // Déterminer si c'est USDT ou Mobile Money
+            $wallet_address = null;
+            $phone = null;
+            $status = 'pending';
+            $transaction_id = null;
+
             if ($method === 'usdt') {
                 $wallet_address = $details;
-                $phone = null;
             } else {
-                $wallet_address = null;
                 $phone = $details;
+
+                // Convertir USD en XOF
+                $xof_amount = $amount * (defined('EXCHANGE_RATE') ? EXCHANGE_RATE : 600);
+
+                // Mapper le réseau et le pays au canal PayDunya
+                $network_map = [
+                    'Orange' => [
+                        'senegal' => 'orange-money-senegal',
+                        'ivory_coast' => 'orange-money-ci',
+                        'burkina_faso' => 'orange-money-burkina',
+                        'mali' => 'orange-money-mali'
+                    ],
+                    'MTN' => [
+                        'benin' => 'mtn-benin'
+                    ],
+                    'Moov' => [
+                        'ivory_coast' => 'moov-money-ci',
+                        'benin' => 'moov-money-benin',
+                        'togo' => 'flooz-togo'
+                    ]
+                ];
+
+                $channel = $network_map[$network][$country] ?? null;
+                if (!$channel) {
+                    throw new Exception("Opérateur ou pays non supporté pour Mobile Money");
+                }
+
+                // Initiater le paiement via PayDunya
+                $disbursement = new DirectPay();
+                $payout_data = [
+                    'phone_number' => $phone,
+                    'amount' => $xof_amount,
+                    'channel' => $channel,
+                    'description' => "Retrait Mobile Money pour utilisateur $user_id"
+                ];
+
+                try {
+                    $response = $disbursement->createDisbursement($payout_data);
+                    if ($response['success']) {
+                        $status = 'processing';
+                        $transaction_id = $response['transaction_id'] ?? null;
+                        $success = "Retrait initié avec succès. Traitement en cours.";
+                    } else {
+                        // Fallback : essayer avec un autre canal si disponible
+                        $fallback_channel = 'orange-money-senegal'; // Canal de secours
+                        if ($channel !== $fallback_channel) {
+                            $payout_data['channel'] = $fallback_channel;
+                            $response = $disbursement->createDisbursement($payout_data);
+                            if ($response['success']) {
+                                $status = 'processing';
+                                $transaction_id = $response['transaction_id'] ?? null;
+                                $success = "Retrait initié avec succès via canal de secours.";
+                            } else {
+                                throw new Exception("Erreur PayDunya: " . ($response['message'] ?? 'Échec du paiement'));
+                            }
+                        } else {
+                            throw new Exception("Erreur PayDunya: " . ($response['message'] ?? 'Échec du paiement'));
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log("Erreur PayDunya retrait: " . $e->getMessage());
+                    throw new Exception("Échec de l'initiation du retrait: " . $e->getMessage());
+                }
             }
 
             // Enregistrement sécurisé
             $stmt = $pdo->prepare("INSERT INTO withdrawals 
-                                  (user_id, amount, method, wallet_address, phone, network, status, created_at) 
-                                  VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())");
-            if (!$stmt->execute([$user_id, $amount, $method, $wallet_address, $phone, $network])) {
+                                  (user_id, amount, method, wallet_address, phone, network, country, status, transaction_id, created_at) 
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            if (!$stmt->execute([$user_id, $amount, $method, $wallet_address, $phone, $network, $country, $status, $transaction_id])) {
                 throw new PDOException("Erreur lors de l'enregistrement");
             }
 
-            $success = "Demande enregistrée. Traitement sous 24h.";
-            
             // Mise à jour du solde après retrait
             $balance['profit'] -= $amount;
             $balance['current'] = $balance['invested'] + $balance['profit'];
-            
+
+            if (!$success) {
+                $success = "Demande enregistrée. Traitement sous 24h.";
+            }
+
         } catch (PDOException $e) {
             error_log("Erreur DB retrait: " . $e->getMessage());
             $error = "Erreur système. Veuillez réessayer.";
         } catch (Exception $e) {
+            error_log("Erreur retrait: " . $e->getMessage());
             $error = $e->getMessage();
         }
     }
@@ -125,14 +214,14 @@ require_once 'includes/header.php';
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <!-- Affichage des messages -->
-            <?php if($error): ?>
+            <?php if ($error): ?>
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-circle me-2"></i>
                 <?= htmlspecialchars($error) ?>
             </div>
             <?php endif; ?>
             
-            <?php if($success): ?>
+            <?php if ($success): ?>
             <div class="alert alert-success">
                 <i class="fas fa-check-circle me-2"></i>
                 <?= htmlspecialchars($success) ?>
@@ -234,11 +323,24 @@ require_once 'includes/header.php';
                                 </div>
                                 
                                 <div class="mb-3">
+                                    <label class="form-label"><i class="fas fa-globe me-2"></i> Pays</label>
+                                    <select class="form-select" name="country" required>
+                                        <option value="">Sélectionnez un pays</option>
+                                        <option value="senegal">Sénégal</option>
+                                        <option value="ivory_coast">Côte d'Ivoire</option>
+                                        <option value="benin">Bénin</option>
+                                        <option value="togo">Togo</option>
+                                        <option value="burkina_faso">Burkina Faso</option>
+                                        <option value="mali">Mali</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
                                     <label class="form-label"><i class="fas fa-mobile-alt me-2"></i> Opérateur</label>
                                     <select class="form-select" name="network" required>
                                         <option value="">Sélectionnez un opérateur</option>
-                                        <option value="MTN">MTN Mobile Money</option>
                                         <option value="Orange">Orange Money</option>
+                                        <option value="MTN">MTN Mobile Money</option>
                                         <option value="Moov">Moov Money</option>
                                     </select>
                                 </div>
@@ -246,7 +348,7 @@ require_once 'includes/header.php';
                                 <div class="mb-3">
                                     <label class="form-label"><i class="fas fa-phone me-2"></i> Numéro de téléphone</label>
                                     <input type="tel" class="form-control" name="details" 
-                                           placeholder="Ex: 0701234567" required>
+                                           placeholder="Ex: +221701234567" required>
                                 </div>
                                 
                                 <button type="submit" name="request_withdrawal" class="btn btn-primary w-100 py-2" <?= !$can_withdraw ? 'disabled' : '' ?>>
@@ -274,15 +376,14 @@ require_once 'includes/header.php';
                                     <th>Réseau</th>
                                     <th>Détails</th>
                                     <th>Statut</th>
+                                    <th>Transaction ID</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach($withdrawals as $withdrawal): ?>
+                                <?php foreach ($withdrawals as $withdrawal): ?>
                                 <tr>
                                     <td><?= date('d/m/Y H:i', strtotime($withdrawal['created_at'])) ?></td>
-                                    <td>
-                                        <?= $withdrawal['method'] === 'usdt' ? 'USDT' : 'Mobile Money' ?>
-                                    </td>
+                                    <td><?= $withdrawal['method'] === 'usdt' ? 'USDT' : 'Mobile Money' ?></td>
                                     <td>$<?= number_format($withdrawal['amount'], 2) ?></td>
                                     <td><?= htmlspecialchars($withdrawal['network'] ?? 'N/A') ?></td>
                                     <td>
@@ -295,16 +396,18 @@ require_once 'includes/header.php';
                                     <td>
                                         <span class="badge bg-<?= 
                                             $withdrawal['status'] === 'completed' ? 'success' : 
-                                            ($withdrawal['status'] === 'pending' ? 'warning' : 'danger') 
+                                            ($withdrawal['status'] === 'pending' ? 'warning' : 
+                                            ($withdrawal['status'] === 'processing' ? 'info' : 'danger')) 
                                         ?>">
                                             <?= ucfirst($withdrawal['status']) ?>
                                         </span>
                                     </td>
+                                    <td><?= htmlspecialchars($withdrawal['transaction_id'] ?? 'N/A') ?></td>
                                 </tr>
                                 <?php endforeach; ?>
-                                <?php if(empty($withdrawals)): ?>
+                                <?php if (empty($withdrawals)): ?>
                                 <tr>
-                                    <td colspan="6" class="text-center">Aucun retrait effectué</td>
+                                    <td colspan="7" class="text-center">Aucun retrait effectué</td>
                                 </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -440,6 +543,7 @@ require_once 'includes/header.php';
 
 .bg-success { background: #d1fae5; color: #065f46; }
 .bg-warning { background: #fefcbf; color: #854d0e; }
+.bg-info { background: #bfdbfe; color: #1e3a8a; }
 .bg-danger { background: #fee2e2; color: #991b1b; }
 
 .mobile-bottom-nav {
@@ -534,4 +638,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php require_once 'includes/footer.php'; ?>
