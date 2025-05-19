@@ -1,4 +1,6 @@
 <?php
+file_put_contents(__DIR__ . '/payment.log', 'PAYDUNYA_MASTER_KEY: ' . var_export(getenv('PAYDUNYA_MASTER_KEY'), true) . PHP_EOL, FILE_APPEND);
+
 session_start();
 require_once 'includes/config.php';
 require_once 'includes/db.php';
