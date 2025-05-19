@@ -52,12 +52,12 @@ if (!defined('EXCHANGE_RATE') || EXCHANGE_RATE <= 0) {
 // Générer un ID unique pour le paiement
 $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4));
 
-// Configurer Paydunya avec les clés depuis les variables d'environnement
-Setup::setMasterKey(getenv('PAYDUNYA_MASTER_KEY') ?: throw new Exception('PAYDUNYA_MASTER_KEY manquant'));
-Setup::setPublicKey(getenv('PAYDUNYA_PUBLIC_KEY') ?: throw new Exception('PAYDUNYA_PUBLIC_KEY manquant'));
-Setup::setPrivateKey(getenv('PAYDUNYA_PRIVATE_KEY') ?: throw new Exception('PAYDUNYA_PRIVATE_KEY manquant'));
-Setup::setToken(getenv('PAYDUNYA_TOKEN') ?: throw new Exception('PAYDUNYA_TOKEN manquant'));
-Setup::setMode('test'); // 'live' pour production
+// ne jamais configurer vos clés api en code dur conseil de Mr Hokague
+Setup::setMasterKey('61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP'); // Remplacer par la vraie clé celle ci a été utilisé en guise d'exemple 
+Setup::setPublicKey('live_public_5Uhdeo8oxHpBR5CwevG4juyZ4yF'); // Remplacer par la vraie clé
+Setup::setPrivateKey('live_private_omjNDYClxSRu8KZoDBSvLRo4QEm'); // Remplacer par la vraie clé
+Setup::setToken('X7R67BRbIbnthZ7BTyPr'); // Remplacer par la vraie clé
+Setup::setMode('live'); // 'live' pour production
 
 // Configurer la boutique
 Store::setName('Applovin');
