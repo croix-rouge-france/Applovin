@@ -42,8 +42,7 @@ RUN ls -al /var/www/html && cat /var/www/html/composer.json
 # Étape 8 : Installer les dépendances avec Composer
 RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs --verbose
 
-# Étape 9 : Copier la configuration NGINX
-COPY nginx.conf /etc/nginx/nginx.conf
+
 
 # Étape 10 : Appliquer les permissions
 RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
