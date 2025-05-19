@@ -83,7 +83,7 @@ $invoice->setDescription("Paiement pour plan d'investissement $plan_id");
 
 // Définir les canaux de paiement valides
 $invoice->addChannels([
-    'card',
+    
     'orange-money-senegal',
     'wave-senegal',
     'free-money-senegal',
