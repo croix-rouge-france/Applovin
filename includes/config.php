@@ -1,33 +1,42 @@
 <?php
 // ====================
 
-// Sécurité
+// Sécurité des sessions
 if (session_status() === PHP_SESSION_NONE) {
-    // Configurations de session sécurisées
     ini_set('session.cookie_httponly', 1);
-    ini_set('session.cookie_secure', 1); // Activez seulement si vous utilisez HTTPS
+    ini_set('session.cookie_secure', 1); // HTTPS requis sur Render
     ini_set('session.use_strict_mode', 1);
-}  
-// CONFIGURATION BASE DE DONNÉES
-// =============================
-
-// Charger les variables d'environnement (si tu utilises dotenv)
-if (file_exists(__DIR__ . '/.env')) {
-    $lines = file(__DIR__ . '/.env');
-    foreach ($lines as $line) {
-        if (trim($line) && strpos($line, '=') !== false) {
-            list($key, $value) = explode('=', trim($line), 2);
-            putenv("$key=$value");
-        }
-    }
+    session_start();
 }
 
-// Définir les constantes de connexion MySQL
-if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: 'mysql-applovin.alwaysdata.net');
-if (!defined('DB_USER')) define('DB_USER', getenv('DB_USER') ?: 'root');
-if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') ?: '');
-if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'applovin_db');
+// CONFIGURATION BASE DE DONNÉES
+// Charger phpdotenv pour les variables d'environnement
+require_once __DIR__ . '/vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
+// Définir les constantes de connexion MySQL à partir des variables d'environnement
+if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: throw new Exception('DB_HOST non défini'));
+if (!defined('DB_PORT')) define('DB_PORT', getenv('DB_PORT') ?: '3306');
+if (!defined('DB_USER')) define('DB_USER', getenv('DB_USER') ?: throw new Exception('DB_USER non défini'));
+if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') ?: throw new Exception('DB_PASS non défini'));
+if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: throw new Exception('DB_NAME non défini'));
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
+
+// Fonction pour établir la connexion PDO
+function getDbConnection() {
+    $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+    try {
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+        return $pdo;
+    } catch (PDOException $e) {
+        die("Erreur de connexion : " . $e->getMessage());
+    }
+}
 
 
 // ====================
