@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $page_title = "Connexion";
-require_once 'includes/header.php';
+
 
 ?>
 
