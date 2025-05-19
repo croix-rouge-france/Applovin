@@ -8,7 +8,6 @@
         "endroid/qr-code": "^5.0",
         "web3p/web3.php": "^0.3.2",
         "vlucas/phpdotenv": "^5.5",
-        "rmccue/requests": "^2.0",
         "ext-curl": "*",
         "ext-pdo": "*",
         "ext-mbstring": "*",
