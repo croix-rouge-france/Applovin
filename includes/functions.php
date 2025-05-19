@@ -1,6 +1,6 @@
 <?php
 require_once 'db.php';
-$db = Database::getInstance()->getConnection(); // Assure l'initialisation correcte
+
 
 
 function register_user($username, $email, $password, $referred_by = null) {
