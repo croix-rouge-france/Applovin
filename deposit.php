@@ -1,32 +1,23 @@
 <?php
-file_put_contents(__DIR__ . '/payment.log', 'PAYDUNYA_MASTER_KEY: ' . var_export(getenv('PAYDUNYA_MASTER_KEY'), true) . PHP_EOL, FILE_APPEND);
-
 session_start();
-require_once 'includes/config.php';
-require_once 'includes/db.php';
-
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/db.php';
 use Paydunya\Setup;
 use Paydunya\Checkout\Store;
 use Paydunya\Checkout\CheckoutInvoice;
 
-// Inclure manuellement les fichiers PayDunya (ajustez le chemin selon l'emplacement réel)
-require_once __DIR__ . '/vendor/autoload.php';
-
-// Activation du mode debug
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+// Activer le mode debug (supprimer en production)
 error_reporting(E_ALL & ~E_DEPRECATED);
+ini_set('display_errors', 1);
 
-// Vérification si l'utilisateur est connecté
+// Vérifier si l'utilisateur est connecté
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
 
-// Vérification et sécurisation du plan_id
-$plan_id = isset($_GET['plan_id']) ? intval($_GET['plan_id']) : 0;
-
+// Définir les plans d'investissement
 $investment_plans = [
     1 => ['amount' => 5, 'daily_return' => 8.00, 'erc20_link' => 'https://nowpayments.io/payment/?iid=6157357616', 'bep20_link' => 'https://nowpayments.io/payment/?iid=5963899091'],
     2 => ['amount' => 35, 'daily_return' => 10.00, 'erc20_link' => 'https://nowpayments.io/payment/?iid=5923922659', 'bep20_link' => 'https://nowpayments.io/payment/?iid=6054018746'],
@@ -40,33 +31,33 @@ $investment_plans = [
     10 => ['amount' => 10000, 'daily_return' => 26.00, 'erc20_link' => 'https://nowpayments.io/payment/?iid=4997746752', 'bep20_link' => 'https://nowpayments.io/payment/?iid=5045740854']
 ];
 
-// Vérification si le plan existe
+// Vérifier et sécuriser plan_id
+$plan_id = isset($_GET['plan_id']) ? (int)$_GET['plan_id'] : 0;
 if (!array_key_exists($plan_id, $investment_plans) || $plan_id <= 0) {
     echo '<div class="error-container"><i class="fas fa-exclamation-triangle"></i> Erreur : Plan invalide ou non spécifié. <a href="dashboard.php">Retour aux plans</a></div>';
     exit;
 }
 
 $plan = $investment_plans[$plan_id];
-$xof_amount = $plan['amount'] * EXCHANGE_RATE;
+$xof_amount = $plan['amount'] * (defined('EXCHANGE_RATE') ? EXCHANGE_RATE : 600); // Fallback à 600 si non défini
 $daily_earning = $plan['amount'] * $plan['daily_return'] / 100;
 
-// Vérification que EXCHANGE_RATE est défini et valide
+// Vérifier EXCHANGE_RATE
 if (!defined('EXCHANGE_RATE') || EXCHANGE_RATE <= 0) {
+    file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . ' : EXCHANGE_RATE non défini ou invalide' . PHP_EOL, FILE_APPEND);
     echo '<div class="error-container"><i class="fas fa-exclamation-triangle"></i> Erreur : Taux de change non défini ou invalide. Contactez l\'administrateur.</div>';
     exit;
 }
 
-// Générer un ID unique pour ce paiement
+// Générer un ID unique pour le paiement
 $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4));
 
-
-
-// ne jamais configurer vos clés api en code dur conseil de Mr Hokague
-Setup::setMasterKey('61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP'); // Remplacer par la vraie clé celle ci a été utilisé en guise d'exemple 
-Setup::setPublicKey('live_public_5Uhdeo8oxHpBR5CwevG4juyZ4yF'); // Remplacer par la vraie clé
-Setup::setPrivateKey('live_private_omjNDYClxSRu8KZoDBSvLRo4QEm'); // Remplacer par la vraie clé
-Setup::setToken('X7R67BRbIbnthZ7BTyPr'); // Remplacer par la vraie clé
-Setup::setMode('live'); // 'live' pour production
+// Configurer Paydunya avec les clés depuis les variables d'environnement
+Setup::setMasterKey(getenv('PAYDUNYA_MASTER_KEY') ?: throw new Exception('PAYDUNYA_MASTER_KEY manquant'));
+Setup::setPublicKey(getenv('PAYDUNYA_PUBLIC_KEY') ?: throw new Exception('PAYDUNYA_PUBLIC_KEY manquant'));
+Setup::setPrivateKey(getenv('PAYDUNYA_PRIVATE_KEY') ?: throw new Exception('PAYDUNYA_PRIVATE_KEY manquant'));
+Setup::setToken(getenv('PAYDUNYA_TOKEN') ?: throw new Exception('PAYDUNYA_TOKEN manquant'));
+Setup::setMode('test'); // 'live' pour production
 
 // Configurer la boutique
 Store::setName('Applovin');
@@ -80,57 +71,47 @@ Store::setReturnUrl('https://applovin-invest.onrender.com/success.php');
 
 // Créer une facture
 $invoice = new CheckoutInvoice();
-$plan_id = isset($_GET['plan_id']) ? (int)$_GET['plan_id'] : 1;
-$xof_amount = $plan_id === 1 ? 10000 : 20000;
-$invoice->addItem("Plan Investissement $plan_id", 1, $xof_amount, $xof_amount, 'Dépôt pour Applovin');
+$invoice->addItem("Plan Investissement $plan_id", 1, $xof_amount, $xof_amount, "Dépôt pour Applovin Plan $plan_id");
 $invoice->setTotalAmount($xof_amount);
 $invoice->setDescription("Paiement pour plan d'investissement $plan_id");
+$invoice->addChannels(['orange-money-senegal', 'wave-senegal', 'free-money']); // Canaux Mobile Money
 
-
+// Ajouter des données personnalisées
+$invoice->addCustomData('user_id', $_SESSION['user_id']);
+$invoice->addCustomData('plan_id', $plan_id);
+$invoice->addCustomData('payment_id', $payment_id);
+$invoice->addCustomData('transaction_type', 'deposit');
 
 // Traiter le paiement Mobile Money
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
-    session_start();
-    $user_id = $_SESSION['user_id'] ?? throw new Exception('Utilisateur non connecté');
-    $payment_id = uniqid('pay_');
+    try {
+        // Connexion à la base de données
+        $pdo = getDbConnection();
 
-    // Ajouter des données personnalisées
-    $invoice->addCustomData('user_id', $user_id);
-    $invoice->addCustomData('plan_id', $plan_id);
-    $invoice->addCustomData('payment_id', $payment_id);
-    $invoice->addCustomData('transaction_type', 'deposit');
+        // Enregistrer la transaction en attente
+        $invoice_token = uniqid('inv_');
+        $stmt = $pdo->prepare("INSERT INTO deposits (user_id, plan_id, amount, status, invoice_token, payment_id, created_at) VALUES (?, ?, ?, 'pending', ?, ?, NOW())");
+        $stmt->execute([$_SESSION['user_id'], $plan_id, $xof_amount, $invoice_token, $payment_id]);
 
-    // Connexion à la base de données
-    $pdo = new PDO(
-        "mysql:host=" . getenv('DB_HOST') . ";port=" . getenv('DB_PORT') . ";dbname=" . getenv('DB_NAME'),
-        getenv('DB_USER'),
-        getenv('DB_PASS'),
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    );
+        // Créer la facture PayDunya
+        if ($invoice->create()) {
+            // Mettre à jour le token réel
+            $stmt = $pdo->prepare("UPDATE deposits SET invoice_token = ? WHERE invoice_token = ?");
+            $stmt->execute([$invoice->getInvoiceToken(), $invoice_token]);
 
-    // Enregistrer la transaction en attente
-    $invoice_token = uniqid('inv_');
-    $stmt = $pdo->prepare("INSERT INTO deposits (user_id, plan_id, amount, status, invoice_token, payment_id) VALUES (?, ?, ?, 'pending', ?, ?)");
-    $stmt->execute([$user_id, $plan_id, $xof_amount, $invoice_token, $payment_id]);
+            // Journaliser la création réussie
+            file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Facture créée, URL: " . $invoice->getInvoiceUrl() . PHP_EOL, FILE_APPEND);
 
-    // Créer la facture PayDunya
-    if ($invoice->create()) {
-        $stmt = $pdo->prepare("UPDATE deposits SET invoice_token = ? WHERE invoice_token = ?");
-        $stmt->execute([$invoice->getInvoiceToken(), $invoice_token]);
-        header('Location: ' . $invoice->getInvoiceUrl());
-        exit;
-    } else {
-        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . ' : ' . $invoice->response_text . PHP_EOL, FILE_APPEND);
-        die("Erreur lors de la création de la facture : " . $invoice->response_text);
-    }
-} else {
-    // GET : Créer la facture pour redirection
-    if ($invoice->create()) {
-        header('Location: ' . $invoice->getInvoiceUrl());
-        exit;
-    } else {
-        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . ' : ' . $invoice->response_text . PHP_EOL, FILE_APPEND);
-        die('Erreur Paydunya : ' . $invoice->response_text);
+            // Rediriger vers la page de paiement
+            header('Location: ' . $invoice->getInvoiceUrl());
+            exit;
+        } else {
+            $error = "Erreur lors de la création de la facture : " . $invoice->response_text;
+            file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur PayDunya : " . $invoice->response_text . PHP_EOL, FILE_APPEND);
+        }
+    } catch (Exception $e) {
+        $error = "Erreur serveur : " . $e->getMessage();
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Exception : " . $e->getMessage() . PHP_EOL, FILE_APPEND);
     }
 }
 ?>
@@ -140,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Investissement - Plan Niveau <?= $plan_id ?></title>
+    <title>Investissement - Plan Niveau <?= htmlspecialchars($plan_id) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -325,7 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
             <div class="col-lg-8">
                 <div class="payment-card mb-4">
                     <div class="payment-header">
-                        <h2 class="mb-0">Investissement - Plan Niveau <?= $plan_id ?></h2>
+                        <h2 class="mb-0">Investissement - Plan Niveau <?= htmlspecialchars($plan_id) ?></h2>
                     </div>
                     <div class="payment-body">
                         <div class="plan-summary mb-4">
@@ -384,7 +365,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
                                             </div>
                                             <small class="text-muted">Frais de réseau moyens</small>
                                             <div class="text-center mt-3">
-                                                <a href="<?= $plan['erc20_link'] ?>" class="btn btn-outline-primary btn-sm btn-payment-network" target="_blank">
+                                                <a href="<?= htmlspecialchars($plan['erc20_link']) ?>" class="btn btn-outline-primary btn-sm btn-payment-network" target="_blank">
                                                     Payer via ERC20
                                                 </a>
                                             </div>
@@ -400,7 +381,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
                                             </div>
                                             <small class="text-muted">Frais de réseau bas</small>
                                             <div class="text-center mt-3">
-                                                <a href="<?= $plan['bep20_link'] ?>" class="btn btn-outline-primary btn-sm btn-payment-network" target="_blank">
+                                                <a href="<?= htmlspecialchars($plan['bep20_link']) ?>" class="btn btn-outline-primary btn-sm btn-payment-network" target="_blank">
                                                     Payer via BEP20
                                                 </a>
                                             </div>
@@ -423,7 +404,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
                                     <p class="text-muted">Confirmez votre investissement via PayDunya</p>
                                 </div>
                                 <?php if (isset($error)): ?>
-                                    <div class="error-message"><?php echo htmlspecialchars($error); ?></div>
+                                    <div class="error-message"><?= htmlspecialchars($error) ?></div>
                                 <?php endif; ?>
                                 <form method="POST" class="text-center">
                                     <input type="hidden" name="pay_mobile" value="1">
@@ -459,7 +440,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
                     <div class="modal-body" id="nowpaymentsModalBody">
                         <p>Vous allez être redirigé vers la plateforme sécurisée NowPayments.</p>
                         <div class="alert alert-info">
-                            <p><strong>ID de paiement:</strong> <?= $payment_id ?></p>
+                            <p><strong>ID de paiement:</strong> <?= htmlspecialchars($payment_id) ?></p>
                             <p>Conservez cet ID en cas de problème.</p>
                         </div>
                     </div>
