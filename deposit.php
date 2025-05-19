@@ -60,55 +60,63 @@ $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4
 
 
 // Configurer Paydunya avec les clés
-Setup::setMasterKey(getenv('PAYDUNYA_MASTER_KEY'));
-Setup::setPublicKey(getenv('PAYDUNYA_PUBLIC_KEY'));
-Setup::setPrivateKey(getenv('PAYDUNYA_PRIVATE_KEY'));
-Setup::setToken(getenv('PAYDUNYA_TOKEN'));
-Setup::setMode('live');
+Setup::setMasterKey(getenv('PAYDUNYA_MASTER_KEY') ?: throw new Exception('PAYDUNYA_MASTER_KEY manquant'));
+Setup::setPublicKey(getenv('PAYDUNYA_PUBLIC_KEY') ?: throw new Exception('PAYDUNYA_PUBLIC_KEY manquant'));
+Setup::setPrivateKey(getenv('PAYDUNYA_PRIVATE_KEY') ?: throw new Exception('PAYDUNYA_PRIVATE_KEY manquant'));
+Setup::setToken(getenv('PAYDUNYA_TOKEN') ?: throw new Exception('PAYDUNYA_TOKEN manquant'));
+Setup::setMode('live'); // 'test' pour tests, 'live' pour production
 
-
+// Configurer le magasin
 Store::setName('Applovin');
 Store::setTagline('Investissement et Mobile Money');
-Store::setPhoneNumber('+92 038846728');
+Store::setPhoneNumber('+9238846728'); // Format international
 Store::setWebsiteUrl('https://applovin-invest.onrender.com');
 Store::setLogoUrl('https://applovin-invest.onrender.com/logo.png');
 Store::setCallbackUrl('https://applovin-invest.onrender.com/callback.php');
+Store::setCancelUrl('https://applovin-invest.onrender.com/cancel.php'); // URL pour annulation
+Store::setReturnUrl('https://applovin-invest.onrender.com/success.php'); // URL après succès
 
 // Créer une facture
 $invoice = new CheckoutInvoice();
 $plan_id = isset($_GET['plan_id']) ? (int)$_GET['plan_id'] : 1;
-$amount = $plan_id === 1 ? 10000 : 20000; // Exemple
-$invoice->addItem('Plan Investissement', 1, $amount, $amount, 'Description du plan');
-$invoice->setTotalAmount($amount);
+$xof_amount = $plan_id === 1 ? 10000 : 20000; // Montant en XOF
 
-if ($invoice->create()) {
-    header('Location: ' . $invoice->getInvoiceUrl());
-    exit;
-} else {
-    die('Erreur Paydunya : ' . $invoice->response_text);
-}
+// Ajouter un article
+$invoice->addItem("Plan Investissement $plan_id", 1, $xof_amount, $xof_amount, 'Dépôt pour Applovin');
+$invoice->setTotalAmount($xof_amount);
+$invoice->setDescription("Paiement pour plan d'investissement $plan_id");
+
+// Restreindre les moyens de paiement (optionnel)
+$invoice->addChannels(['card', 'orange-money-senegal', 'wave-senegal']); // Selon vos besoins
 
 // Traiter le paiement Mobile Money
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
-    $user_id = $_SESSION['user_id'];
+    session_start();
+    $user_id = $_SESSION['user_id'] ?? throw new Exception('Utilisateur non connecté');
+    $payment_id = uniqid('pay_'); // ID unique pour la transaction
 
-    // Ajouter l'article à la facture
-    $invoice->addItem("Investissement Plan $plan_id", 1, $xof_amount, $xof_amount, "Dépôt pour Applovin");
-    $invoice->setTotalAmount($xof_amount);
-
-    // Données personnalisées
+    // Ajouter des données personnalisées
     $invoice->addCustomData('user_id', $user_id);
     $invoice->addCustomData('plan_id', $plan_id);
     $invoice->addCustomData('payment_id', $payment_id);
     $invoice->addCustomData('transaction_type', 'deposit');
 
+    // Connexion à la base de données
+    $pdo = new PDO(
+        "mysql:host=" . getenv('DB_HOST') . ";port=" . getenv('DB_PORT') . ";dbname=" . getenv('DB_NAME'),
+        getenv('DB_USER'),
+        getenv('DB_PASS'),
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+    );
+
     // Enregistrer la transaction en attente
-    $stmt = $pdo->prepare("INSERT INTO deposits (user_id, plan_id, amount, status, invoice_token, payment_id) VALUES (?, ?, ?, 'pending', ?, ?)");
     $invoice_token = uniqid('inv_');
+    $stmt = $pdo->prepare("INSERT INTO deposits (user_id, plan_id, amount, status, invoice_token, payment_id) VALUES (?, ?, ?, 'pending', ?, ?)");
     $stmt->execute([$user_id, $plan_id, $xof_amount, $invoice_token, $payment_id]);
 
     // Créer la facture PayDunya
     if ($invoice->create()) {
+        // Mettre à jour le token réel
         $stmt = $pdo->prepare("UPDATE deposits SET invoice_token = ? WHERE invoice_token = ?");
         $stmt->execute([$invoice->getInvoiceToken(), $invoice_token]);
 
@@ -116,7 +124,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
         header('Location: ' . $invoice->getInvoiceUrl());
         exit;
     } else {
-        $error = "Erreur lors de la création de la facture : " . $invoice->response_text;
+        die("Erreur lors de la création de la facture : " . $invoice->response_text);
+    }
+} else {
+    // GET : Afficher la page ou rediriger
+    if ($invoice->create()) {
+        header('Location: ' . $invoice->getInvoiceUrl());
+        exit;
+    } else {
+        die('Erreur Paydunya : ' . $invoice->response_text);
     }
 }
 ?>
