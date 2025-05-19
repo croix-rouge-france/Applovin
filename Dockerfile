@@ -21,8 +21,6 @@ RUN apt-get update && apt-get install -y \
     php8.2-pdo-mysql \
     php8.2-mbstring \
     php8.2-curl \
-    php8.2-openssl \
-    php8.2-json \
     && rm -rf /var/lib/apt/lists/*
 
 
