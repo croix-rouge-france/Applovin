@@ -91,7 +91,7 @@ $invoice->addChannels([
     'mobi-cash-burkina',
     'orange-money-mali',
 ]);
-]); // Canaux Mobile Money
+
 
 // Ajouter des données personnalisées
 $invoice->addCustomData('user_id', $_SESSION['user_id']);
