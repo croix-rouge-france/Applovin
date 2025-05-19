@@ -1,7 +1,7 @@
 FROM php:8.2-fpm-bullseye
 
 
-RUN apt-get update && \
+RUN apt-get update --fix-missing || apt-get update --fix-missing && \
     apt-get install -y --no-install-recommends \
     build-essential \
     nginx \
@@ -11,6 +11,7 @@ RUN apt-get update && \
     default-libmysqlclient-dev \
     libonig-dev \
     libcurl4-openssl-dev \
+    pkg-config \
     zip \
     unzip \
     git \
@@ -27,7 +28,6 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 
 
 COPY . /var/www/html
-
 
 WORKDIR /var/www/html
 RUN composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=1G --verbose || \
