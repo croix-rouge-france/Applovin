@@ -11,12 +11,15 @@ RUN apt-get update --fix-missing || apt-get update --fix-missing && \
     default-libmysqlclient-dev \
     libonig-dev \
     libcurl4-openssl-dev \
+    libssl-dev \
+    libwebp-dev \
+    libxpm-dev \
     pkg-config \
     zip \
     unzip \
     git \
     curl \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-xpm \
     && docker-php-ext-install -j$(nproc) gd pdo_mysql mbstring curl openssl json \
     && apt-get purge -y --auto-remove build-essential \
     && apt-get clean \
@@ -29,6 +32,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 
 COPY . /var/www/html
 
+
 WORKDIR /var/www/html
 RUN composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=1G --verbose || \
     composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=1G --verbose
@@ -37,12 +41,11 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --memory-li
 COPY nginx.conf /etc/nginx/nginx.conf
 
 
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
+RUN chown -R www-data:www-data /var/www/html && \
+    chmod -R 755 /var/www/html
 
 
 EXPOSE 80
 
 
 CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
-
