@@ -18,7 +18,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 COPY . /var/www/html
 
 WORKDIR /var/www/html
-RUN composer install --no-dev --optimize-autoloader --no-interaction --verbose
+RUN composer install --no-dev --optimize-autoloader --no-interaction --verbose --ignore-platform-reqs
 
 COPY nginx.conf /etc/nginx/nginx.conf
 
@@ -27,4 +27,3 @@ RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 EXPOSE 80
 
 CMD ["sh", "-c", "service php8.2-fpm start && nginx -g 'daemon off;'"]
-
