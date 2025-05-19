@@ -15,19 +15,21 @@ RUN apt-get update && \
     git \
     curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd pdo_mysql mbstring curl \
+    && docker-php-ext-install -j$(nproc) gd pdo_mysql mbstring curl openssl json \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && composer --version
 
 
 COPY . /var/www/html
 
 
 WORKDIR /var/www/html
-RUN composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=512M
+RUN composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=1G --verbose || \
+    composer install --no-dev --optimize-autoloader --no-interaction --memory-limit=1G --verbose
 
 
 COPY nginx.conf /etc/nginx/nginx.conf
