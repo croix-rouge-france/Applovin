@@ -90,13 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_mobile'])) {
 
         // Enregistrer la transaction en attente
         $invoice_token = uniqid('inv_');
-        $stmt = $pdo->prepare("INSERT INTO deposits (user_id, plan_id, amount, status, invoice_token, payment_id, created_at) VALUES (?, ?, ?, 'pending', ?, ?, NOW())");
+        $stmt = $db->prepare("INSERT INTO deposits (user_id, plan_id, amount, status, invoice_token, payment_id, created_at) VALUES (?, ?, ?, 'pending', ?, ?, NOW())");
         $stmt->execute([$_SESSION['user_id'], $plan_id, $xof_amount, $invoice_token, $payment_id]);
 
         // Créer la facture PayDunya
         if ($invoice->create()) {
             // Mettre à jour le token réel
-            $stmt = $pdo->prepare("UPDATE deposits SET invoice_token = ? WHERE invoice_token = ?");
+            $stmt = $db->prepare("UPDATE deposits SET invoice_token = ? WHERE invoice_token = ?");
             $stmt->execute([$invoice->getInvoiceToken(), $invoice_token]);
 
             // Journaliser la création réussie
