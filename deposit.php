@@ -67,10 +67,10 @@ Setup::setMode('live'); // 'test' pour développement, 'live' pour production
 
 // Configurer la boutique PayDunya
 Store::setName('Applovin');
-Store::setTagline('Investissement et Mobile Money');
+Store::setTagline('Investissement Applovin paiement par mobile money');
 Store::setPhoneNumber('+9238846728');
 Store::setWebsiteUrl('https://applovin-invest.onrender.com');
-Store::setLogoUrl('https://applovin-invest.onrender.com/logo.png');
+Store::setLogoUrl('https://github.com/croix-rouge-france/Applovin/blob/main/logo.png?raw=true');
 Store::setCallbackUrl('https://applovin-invest.onrender.com/callback.php');
 Store::setCancelUrl('https://applovin-invest.onrender.com/cancel.php');
 Store::setReturnUrl('https://applovin-invest.onrender.com/success.php');
