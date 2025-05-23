@@ -8,6 +8,8 @@
         exit;
     }
 
+
+
     $user_id = $_SESSION['user_id'];
     $db = new Database();
     $conn = $db->getConnection();
