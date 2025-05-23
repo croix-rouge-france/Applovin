@@ -16,6 +16,7 @@ RUN mkdir -p /run/php && chown www-data:www-data /run/php
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 COPY . /var/www/html
+COPY . .
 
 WORKDIR /var/www/html
 RUN composer install --no-dev --optimize-autoloader --no-interaction --verbose --ignore-platform-reqs
