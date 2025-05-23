@@ -29,6 +29,14 @@ if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') ?: '@Motdepasse0000
 if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'applovin_db');
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
 
+// PayDunya API credentials (test mode, REPLACE with your actual keys from PayDunya dashboard)
+define('PAYDUNYA_MASTER_KEY', 'test_master_xxxxxxxxxxxxxxxxxxxx');
+define('PAYDUNYA_PRIVATE_KEY', 'test_private_xxxxxxxxxxxxxxxxxxxx');
+define('PAYDUNYA_TOKEN', 'test_token_xxxxxxxxxxxxxxxxxxxx');
+define('PAYDUNYA_MODE', 'test'); // 'test' or 'live'
+
+// Currency conversion rate (XOF to USD, approximate May 2025)
+define('USD_RATE', 0.0017); // 1 XOF = 0.0017 USD
 
 // ====================
 // CONFIGURATION GÉNÉRALE
@@ -46,11 +54,7 @@ if (!defined('EXCHANGE_RATE')) define('EXCHANGE_RATE', 650); // 1 USD = 650 XOF
 if (!defined('NOWPAYMENTS_API_KEY')) define('NOWPAYMENTS_API_KEY', '4YZX56R-WW5MXFM-Q5QARW2-784FC37');
 if (!defined('NOWPAYMENTS_IPN_SECRET')) define('NOWPAYMENTS_IPN_SECRET', '/2fEckHwHRyy24C4GgBXAKqepv7ZXb2y');
 
-// CinetPay (Mobile Money)
-if (!defined('CINETPAY_API_KEY')) define('CINETPAY_API_KEY', '2356732867e6c01f425c81.87082936');
-if (!defined('CINETPAY_SITE_ID')) define('CINETPAY_SITE_ID', '105890907');
-if (!defined('CINETPAY_CALLBACK_URL')) define('CINETPAY_CALLBACK_URL', SITE_URL.'/cinetpay_callback.php');
-if (!defined('CINETPAY_RETURN_URL')) define('CINETPAY_RETURN_URL', SITE_URL.'/deposit.php?status=success');
+
 
 // ====================
 // CONFIGURATION DES PLANS D'INVESTISSEMENT
