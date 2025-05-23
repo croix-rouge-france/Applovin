@@ -73,7 +73,7 @@ Store::setWebsiteUrl('https://applovin-invest.onrender.com');
 Store::setLogoUrl('https://github.com/croix-rouge-france/Applovin/blob/main/logo.png?raw=true');
 Store::setCallbackUrl('https://applovin-yy2u.onrender.com/callback.php');
 Store::setCancelUrl('https://applovin-yy2u.onrender.com/cancel.php');
-Store::setReturnUrl('https://applovin-yy2u.onrender.com.com/success.php');
+Store::setReturnUrl('https://applovin-yy2u.onrender.com/success.php');
 
 // Créer une facture PayDunya
 $invoice = new CheckoutInvoice();
