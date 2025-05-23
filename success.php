@@ -1,56 +1,51 @@
 <?php
-session_start();
-require_once 'includes/config.php';
-require_once 'includes/db.php';
+    session_start();
+    require_once __DIR__ . '/includes/config.php';
+    require_once __DIR__ . '/includes/db.php';
 
-// Vérifier si l'utilisateur est connecté
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
+    if (!isset($_SESSION['user_id'])) {
+        header('Location: login.php');
+        exit;
+    }
 
-// Journaliser la visite à la page de succès (pour débogage)
-file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Page succès visitée, GET: " . print_r($_GET, true) . PHP_EOL, FILE_APPEND);
+    $user_id = $_SESSION['user_id'];
+    $db = new Database();
+    $conn = $db->getConnection();
 
-// Mettre à jour le statut du dépôt (par exemple, de 'pending' à 'completed')
-if (isset($_GET['token'])) {
-    $db = Database::getInstance()->getConnection();
-    $stmt = $db->prepare("UPDATE deposits SET status = 'completed', updated_at = NOW() WHERE invoice_token = ? AND user_id = ?");
-    $stmt->execute([$_GET['token'], $_SESSION['user_id']]);
-}
-
-?>
-
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paiement Réussi - Applovin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-</head>
-<body>
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="card shadow-lg">
-                    <div class="card-header bg-success text-white">
-                        <h2 class="mb-0"><i class="fas fa-check-circle me-2"></i> Paiement Réussi</h2>
-                    </div>
-                    <div class="card-body text-center">
-                        <p class="lead">Votre dépôt a été effectué avec succès !</p>
-                        <p>Vous serez redirigé vers votre tableau de bord dans quelques secondes...</p>
-                        <a href="dashboard.php" class="btn btn-primary mt-3">Retour au Tableau de Bord</a>
-                    </div>
+    // Fetch latest completed deposit
+    $sql = "SELECT amount, status, created_at 
+            FROM deposits 
+            WHERE user_id = :user_id AND status = 'completed' 
+            ORDER BY created_at DESC LIMIT 1";
+    $stmt = $db->query($sql, [':user_id' => $user_id]);
+    $deposit = $stmt->fetch();
+    ?>
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Paiement Réussi - Applovin</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+        <link href="/public/css/style.css" rel="stylesheet">
+    </head>
+    <body>
+        <div class="container py-5">
+            <h1 class="text-center mb-4">Paiement Réussi</h1>
+            <div class="card mx-auto" style="max-width: 500px;">
+                <div class="card-body text-center">
+                    <?php if ($deposit): ?>
+                        <p>Montant: <?php echo number_format($deposit['amount'], 0); ?> XOF 
+                           (<?php echo number_format($deposit['amount'] * USD_RATE, 2); ?> USD)</p>
+                        <p>Statut: <?php echo htmlspecialchars($deposit['status']); ?></p>
+                        <p>Date: <?php echo date('Y-m-d H:i:s', strtotime($deposit['created_at'])); ?></p>
+                    <?php else: ?>
+                        <p>Votre paiement a été traité, mais les détails ne sont pas encore disponibles.</p>
+                    <?php endif; ?>
+                    <a href="dashboard.php" class="btn btn-primary">Voir le Tableau de Bord</a>
                 </div>
             </div>
         </div>
-    </div>
-    <script>
-        setTimeout(() => {
-            window.location.href = 'dashboard.php';
-        }, 5000);
-    </script>
-</body>
-</html>
+        <script src="/public/js/bootstrap.bundle.min.js"></script>
+    </body>
+    </html>
