@@ -18,6 +18,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 WORKDIR /var/www/html
 
 COPY . /var/www/html
+COPY success.php /var/www/html/success.php
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction --verbose --ignore-platform-reqs
 
