@@ -53,6 +53,20 @@ try {
         error_log("Erreur calcul balance: " . $e->getMessage());
     }
 
+    // Récupération des dépôts
+    $deposits = [];
+    try {
+        $stmt = $pdo->prepare("SELECT amount, currency, created_at, status, network, country, phone, payment_method 
+                              FROM deposits 
+                              WHERE user_id = ? 
+                              ORDER BY created_at DESC 
+                              LIMIT 5");
+        $stmt->execute([$user_id]);
+        $deposits = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Erreur récupération dépôts: " . $e->getMessage());
+    }
+
     // Récupération des transactions
     $transactions = [];
     try {
@@ -173,6 +187,7 @@ try {
 $page_title = "Tableau de bord";
 require_once 'includes/header.php';
 ?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -181,7 +196,7 @@ require_once 'includes/header.php';
     <title><?= $page_title ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-   <style>
+    <style>
     :root {
         --primary-gradient: linear-gradient(135deg, #4361ee, #3a0ca3);
         --secondary-gradient: linear-gradient(135deg, #f72585, #b5179e);
@@ -493,14 +508,14 @@ require_once 'includes/header.php';
         from { box-shadow: 0 0 10px rgba(67, 97, 238, 0.5); }
         to { box-shadow: 0 0 20px rgba(67, 97, 238, 0.8); }
     }
-</style>
+    </style>
 </head>
 <body>
     <div class="container py-3">
         <!-- En-tête de la plateforme -->
         <div class="platform-header">
             <h2 class="text-center mb-3">
-            <i>Bonjour, <?php echo htmlspecialchars($user['username']); ?> ! 👋</i>
+                <i>Bonjour, <?php echo htmlspecialchars($user['username']); ?> ! 👋</i>
                 <i class="fas fa-oil-can me-2"></i>APPlovin Digital Currency investment Center
             </h2>
             <div class="text-center mb-3">
@@ -513,7 +528,10 @@ require_once 'includes/header.php';
                 Nos efforts d'innovation créent des produits qui améliorent la qualité de vie dans le monde.
             </p>
         </div>
-        <div class="col-md-4">
+
+        <div class="row">
+            <!-- Colonne gauche -->
+            <div class="col-md-8">
                 <!-- Carte de solde -->
                 <div class="balance-card">
                     <h5 class="mb-3"><i class="fas fa-wallet me-2"></i>Solde USDT</h5>
@@ -529,56 +547,100 @@ require_once 'includes/header.php';
                         </div>
                     </div>
                 </div>
-        </div>
-        <div class="row">
-            <!-- Colonne gauche -->
-            <div class="col-md-8">
+
                 <!-- Section Investissement -->
                 <div class="card investment-card">
                     <div class="card-header">
                         <i class="fas fa-chart-line me-2"></i>Niveaux d'Investissement
                     </div>
-                   <div class="card-body">
-    <div class="table-responsive">
-        <table class="investment-table">
-            <thead>
-                <tr>
-                    <th>Niveau</th>
-                    <th>Investissement (USDT)</th>
-                    <th>Retour Quotidien (%)</th>
-                    <th>Gain Quotidien (USDT)</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                $investment_levels = [
-                    ['level' => 1, 'investment' => 5, 'return' => 8.00, 'earning' => 0.40],
-                    ['level' => 2, 'investment' => 35, 'return' => 10.00, 'earning' => 3.50],
-                    ['level' => 3, 'investment' => 120, 'return' => 12.00, 'earning' => 14.40],
-                    ['level' => 4, 'investment' => 300, 'return' => 14.00, 'earning' => 42.00],
-                    ['level' => 5, 'investment' => 700, 'return' => 16.00, 'earning' => 112.00],
-                    ['level' => 6, 'investment' => 1500, 'return' => 18.00, 'earning' => 270.00],
-                    ['level' => 7, 'investment' => 3000, 'return' => 20.00, 'earning' => 600.00],
-                    ['level' => 8, 'investment' => 5000, 'return' => 22.00, 'earning' => 1100.00],
-                    ['level' => 9, 'investment' => 7500, 'return' => 24.00, 'earning' => 1800.00],
-                    ['level' => 10, 'investment' => 10000, 'return' => 26.00, 'earning' => 2600.00]
-                ];
-                
-                foreach ($investment_levels as $level) {
-                    echo "<tr>";
-                    echo "<td>{$level['level']}</td>";
-                    echo "<td>{$level['investment']}</td>";
-                    echo "<td>{$level['return']}%</td>";
-                    echo "<td>{$level['earning']}</td>";
-                    echo "<td><a href='deposit.php?plan_id={$level['level']}' class='btn btn-sm btn-conoco'>Investir</a></td>";
-                    echo "</tr>";
-                }
-                ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="investment-table">
+                                <thead>
+                                    <tr>
+                                        <th>Niveau</th>
+                                        <th>Investissement (USDT)</th>
+                                        <th>Retour Quotidien (%)</th>
+                                        <th>Gain Quotidien (USDT)</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php
+                                    $investment_levels = [
+                                        ['level' => 1, 'investment' => 5, 'return' => 8.00, 'earning' => 0.40],
+                                        ['level' => 2, 'investment' => 35, 'return' => 10.00, 'earning' => 3.50],
+                                        ['level' => 3, 'investment' => 120, 'return' => 12.00, 'earning' => 14.40],
+                                        ['level' => 4, 'investment' => 300, 'return' => 14.00, 'earning' => 42.00],
+                                        ['level' => 5, 'investment' => 700, 'return' => 16.00, 'earning' => 112.00],
+                                        ['level' => 6, 'investment' => 1500, 'return' => 18.00, 'earning' => 270.00],
+                                        ['level' => 7, 'investment' => 3000, 'return' => 20.00, 'earning' => 600.00],
+                                        ['level' => 8, 'investment' => 5000, 'return' => 22.00, 'earning' => 1100.00],
+                                        ['level' => 9, 'investment' => 7500, 'return' => 24.00, 'earning' => 1800.00],
+                                        ['level' => 10, 'investment' => 10000, 'return' => 26.00, 'earning' => 2600.00]
+                                    ];
+                                    
+                                    foreach ($investment_levels as $level) {
+                                        echo "<tr>";
+                                        echo "<td>{$level['level']}</td>";
+                                        echo "<td>{$level['investment']}</td>";
+                                        echo "<td>{$level['return']}%</td>";
+                                        echo "<td>{$level['earning']}</td>";
+                                        echo "<td><a href='deposit.php?plan_id={$level['level']}' class='btn btn-sm btn-conoco'>Investir</a></td>";
+                                        echo "</tr>";
+                                    }
+                                    ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section Historique des Dépôts -->
+                <div class="card investment-card mt-4">
+                    <div class="card-header">
+                        <i class="fas fa-money-bill-wave me-2"></i>Historique des Dépôts
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="investment-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Montant</th>
+                                        <th>Opérateur</th>
+                                        <th>Pays</th>
+                                        <th>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($deposits as $deposit): ?>
+                                    <tr>
+                                        <td><?= date('d/m/Y H:i', strtotime($deposit['created_at'])) ?></td>
+                                        <td>
+                                            <?= number_format($deposit['amount'], 0) ?> XOF
+                                            (≈ <?= number_format($deposit['amount'] / (defined('EXCHANGE_RATE') ? EXCHANGE_RATE : 600), 2) ?> USD)
+                                        </td>
+                                        <td><?= htmlspecialchars($deposit['network'] ?? 'N/A') ?></td>
+                                        <td><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $deposit['country'] ?? 'N/A'))) ?></td>
+                                        <td>
+                                            <span class="badge bg-<?= 
+                                                $deposit['status'] === 'completed' ? 'success' : 
+                                                ($deposit['status'] === 'pending' ? 'warning' : 'danger') 
+                                            ?>">
+                                                <?= ucfirst($deposit['status']) ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                    <?php if (empty($deposits)): ?>
+                                    <tr>
+                                        <td colspan="5" class="text-center">Aucun dépôt effectué</td>
+                                    </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -623,11 +685,10 @@ require_once 'includes/header.php';
             </div>
 
             <!-- Colonne droite -->
-            
-
+            <div class="col-md-4">
                 <!-- Section Parrainage -->
                 <div class="referral-section">
-                <h5 class="mb-3"><i class="fas fa-users me-2"></i>Programme de Parrainage</h5>
+                    <h5 class="mb-3"><i class="fas fa-users me-2"></i>Programme de Parrainage</h5>
                     <p class="text-muted">Code d'invitation :</p>
                     <div class="referral-code"><?= $user['referral_code'] ?></div>
                     
@@ -639,171 +700,169 @@ require_once 'includes/header.php';
                         </button>
                     </div>
                     
-        <!-- [Le début de la section reste inchangé jusqu'au tab-content] -->
-
-        
-        <div class="tab-content" id="referralTabContent">
-            <div class="tab-pane fade show active" id="team-tab-pane" role="tabpanel">
-                <div class="row text-center mb-3">
-                    <div class="col-6">
-                        <div class="commission-level">
-                            <h5>Recharge d'équipe</h5>
-                            <h3 class="text-primary"><?= number_format($team_stats['team_recharge'], 2) ?> USDT</h3>
+                    <div class="tab-content" id="referralTabContent">
+                        <div class="tab-pane fade show active" id="team-tab-pane" role="tabpanel">
+                            <div class="row text-center mb-3">
+                                <div class="col-6">
+                                    <div class="commission-level">
+                                        <h5>Recharge d'équipe</h5>
+                                        <h3 class="text-primary"><?= number_format($team_stats['team_recharge'], 2) ?> USDT</h3>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="commission-level">
+                                        <h5>Retrait d'équipe</h5>
+                                        <h3 class="text-primary"><?= number_format($team_stats['team_withdrawal'], 2) ?> USDT</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="commission-level">
+                                <h5>Nouvelle équipe</h5>
+                                <div class="row mt-3">
+                                    <div class="col-6">
+                                        <small>Première recharge</small>
+                                        <h4><?= $team_stats['new_team_first_recharge'] ?></h4>
+                                    </div>
+                                    <div class="col-6">
+                                        <small>Premier retrait</small>
+                                        <h4><?= $team_stats['new_team_first_withdrawal'] ?></h4>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="commission-level">
-                            <h5>Retrait d'équipe</h5>
-                            <h3 class="text-primary"><?= number_format($team_stats['team_withdrawal'], 2) ?> USDT</h3>
+                        
+                        <div class="tab-pane fade" id="commission-tab-pane" role="tabpanel">
+                            <div class="commission-level">
+                                <h5>Niveau 1</h5>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div>
+                                        <small>Invités/Validés</small>
+                                        <h4><?= $invitation_stats['level1']['invited'] ?>/<?= $invitation_stats['level1']['validated'] ?></h4>
+                                    </div>
+                                    <div>
+                                        <small>Revenu total</small>
+                                        <h4><?= number_format($invitation_stats['level1']['income'], 2) ?> USDT</h4>
+                                    </div>
+                                    <div>
+                                        <small>Commission</small>
+                                        <h4 class="text-success">10%</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="commission-level">
+                                <h5>Niveau 2</h5>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div>
+                                        <small>Invités/Validés</small>
+                                        <h4><?= $invitation_stats['level2']['invited'] ?>/<?= $invitation_stats['level2']['validated'] ?></h4>
+                                    </div>
+                                    <div>
+                                        <small>Revenu total</small>
+                                        <h4><?= number_format($invitation_stats['level2']['income'], 2) ?> USDT</h4>
+                                    </div>
+                                    <div>
+                                        <small>Commission</small>
+                                        <h4 class="text-success">2%</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="commission-level">
+                                <h5>Niveau 3</h5>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div>
+                                        <small>Invités/Validés</small>
+                                        <h4><?= $invitation_stats['level3']['invited'] ?>/<?= $invitation_stats['level3']['validated'] ?></h4>
+                                    </div>
+                                    <div>
+                                        <small>Revenu total</small>
+                                        <h4><?= number_format($invitation_stats['level3']['income'], 2) ?> USDT</h4>
+                                    </div>
+                                    <div>
+                                        <small>Commission</small>
+                                        <h4 class="text-success">2%</h4>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <div class="commission-level">
-                    <h5>Nouvelle équipe</h5>
-                    <div class="row mt-3">
-                        <div class="col-6">
-                            <small>Première recharge</small>
-                            <h4><?= $team_stats['new_team_first_recharge'] ?></h4>
-                        </div>
-                        <div class="col-6">
-                            <small>Premier retrait</small>
-                            <h4><?= $team_stats['new_team_first_withdrawal'] ?></h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="tab-pane fade" id="commission-tab-pane" role="tabpanel">
-                <div class="commission-level">
-                    <h5>Niveau 1</h5>
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <div>
-                            <small>Invités/Validés</small>
-                            <h4><?= $invitation_stats['level1']['invited'] ?>/<?= $invitation_stats['level1']['validated'] ?></h4>
-                        </div>
-                        <div>
-                            <small>Revenu total</small>
-                            <h4><?= number_format($invitation_stats['level1']['income'], 2) ?> USDT</h4>
-                        </div>
-                        <div>
-                            <small>Commission</small>
-                            <h4 class="text-success">10%</h4>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="commission-level">
-                    <h5>Niveau 2</h5>
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <div>
-                            <small>Invités/Validés</small>
-                            <h4><?= $invitation_stats['level2']['invited'] ?>/<?= $invitation_stats['level2']['validated'] ?></h4>
-                        </div>
-                        <div>
-                            <small>Revenu total</small>
-                            <h4><?= number_format($invitation_stats['level2']['income'], 2) ?> USDT</h4>
-                        </div>
-                        <div>
-                            <small>Commission</small>
-                            <h4 class="text-success">2%</h4>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="commission-level">
-                    <h5>Niveau 3</h5>
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <div>
-                            <small>Invités/Validés</small>
-                            <h4><?= $invitation_stats['level3']['invited'] ?>/<?= $invitation_stats['level3']['validated'] ?></h4>
-                        </div>
-                        <div>
-                            <small>Revenu total</small>
-                            <h4><?= number_format($invitation_stats['level3']['income'], 2) ?> USDT</h4>
-                        </div>
-                        <div>
-                            <small>Commission</small>
-                            <h4 class="text-success">2%</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-            <!-- Barre de navigation mobile -->
-<nav class="mobile-bottom-nav d-lg-none">
-    <a href="dashboard.php" class="nav-item active">
-        <i class="fas fa-home"></i>
-        <span>Accueil</span>
-    </a>
-    <a href="withdraw.php" class="nav-item">
-        <i class="fas fa-wallet"></i>
-        <span>Retrait</span>
-    </a>
-    <a href="referrals.php" class="nav-item">
-        <i class="fas fa-users"></i>
-        <span>Équipe</span>
-    </a>
-    <a href="transactions.php" class="nav-item">
-        <i class="fas fa-exchange-alt"></i>
-        <span>Transactions</span>
-    </a>
-    <a href="profile.php" class="nav-item ">
-        <i class="fas fa-user"></i>
-        <span>Profil</span>
-    </a>
-</nav>
-
-<style>
-.welcome-section {
-    padding: 1.5rem;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e2e6ea 100%);
-    border-radius: 0.5rem;
-    margin-bottom: 2rem;
-}
-
-.toggle-password {
-    cursor: pointer;
-}
-
-.mobile-bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-    background: linear-gradient(135deg, #1a3e8c, #0d2b6b);
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
-    display: flex;
-    justify-content: space-around;
-    padding: 0.5rem 0;
-}
-
-.mobile-bottom-nav .nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    color: rgba(255,255,255,0.7);
-    text-decoration: none;
-    padding: 0.5rem;
-    font-size: 0.8rem;
-}
-
-.mobile-bottom-nav .nav-item.active {
-    color: white;
-}
-
-.mobile-bottom-nav .nav-item i {
-    font-size: 1.2rem;
-    margin-bottom: 0.2rem;
-}
-</style>
-
-<!-- Espace pour éviter que le contenu ne soit caché par le menu fixe -->
-<div style="height: 70px;"></div>
             </div>
         </div>
+
+        <!-- Barre de navigation mobile -->
+        <nav class="mobile-bottom-nav d-lg-none">
+            <a href="dashboard.php" class="nav-item active">
+                <i class="fas fa-home"></i>
+                <span>Accueil</span>
+            </a>
+            <a href="withdraw.php" class="nav-item">
+                <i class="fas fa-wallet"></i>
+                <span>Retrait</span>
+            </a>
+            <a href="referrals.php" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Équipe</span>
+            </a>
+            <a href="transactions.php" class="nav-item">
+                <i class="fas fa-exchange-alt"></i>
+                <span>Transactions</span>
+            </a>
+            <a href="profile.php" class="nav-item">
+                <i class="fas fa-user"></i>
+                <span>Profil</span>
+            </a>
+        </nav>
+
+        <style>
+        .welcome-section {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e2e6ea 100%);
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .toggle-password {
+            cursor: pointer;
+        }
+
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(135deg, #1a3e8c, #0d2b6b);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-around;
+            padding: 0.5rem 0;
+        }
+
+        .mobile-bottom-nav .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            padding: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .mobile-bottom-nav .nav-item.active {
+            color: white;
+        }
+
+        .mobile-bottom-nav .nav-item i {
+            font-size: 1.2rem;
+            margin-bottom: 0.2rem;
+        }
+        </style>
+
+        <!-- Espace pour éviter que le contenu ne soit caché par le menu fixe -->
+        <div style="height: 70px;"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -854,4 +913,3 @@ require_once 'includes/header.php';
     </script>
 </body>
 </html>
-
