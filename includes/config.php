@@ -29,11 +29,7 @@ if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') ?: '@Motdepasse0000
 if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'applovin_db');
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
 
-// PayDunya API credentials (test mode, REPLACE with your actual keys from PayDunya dashboard)
-define('PAYDUNYA_MASTER_KEY', 'test_master_xxxxxxxxxxxxxxxxxxxx');
-define('PAYDUNYA_PRIVATE_KEY', 'test_private_xxxxxxxxxxxxxxxxxxxx');
-define('PAYDUNYA_TOKEN', 'test_token_xxxxxxxxxxxxxxxxxxxx');
-define('PAYDUNYA_MODE', 'test'); // 'test' or 'live'
+
 
 // Currency conversion rate (XOF to USD, approximate May 2025)
 define('USD_RATE', 0.0017); // 1 XOF = 0.0017 USD
