@@ -60,10 +60,10 @@ $payment_id = 'INVEST_' . $plan_id . '_' . time() . '_' . bin2hex(random_bytes(4
 // Configurer PayDunya
 // TODO: Déplacer ces clés vers config.php pour des raisons de sécurité
 Setup::setMasterKey('61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP'); // Exemple, à remplacer
-Setup::setPublicKey('live_public_5Uhdeo8oxHpBR5CwevG4juyZ4yF'); // Exemple, à remplacer
-Setup::setPrivateKey('live_private_omjNDYClxSRu8KZoDBSvLRo4QEm'); // Exemple, à remplacer
-Setup::setToken('X7R67BRbIbnthZ7BTyPr'); // Exemple, à remplacer
-Setup::setMode('live'); // 'test' pour développement, 'live' pour production
+Setup::setPublicKey('test_public_iwW07Yf5lqYdMhqu19hE6JzIZZC'); // Exemple, à remplacer
+Setup::setPrivateKey('test_private_7yq2nkCQckLYWOfFpiRFFM1lUBV'); // Exemple, à remplacer
+Setup::setToken('Jpjdn5hYIsSMfJpw35oR'); // Exemple, à remplacer
+Setup::setMode('test'); // 'test' pour développement, 'live' pour production
 
 // Configurer la boutique PayDunya
 Store::setName('Applovin');
