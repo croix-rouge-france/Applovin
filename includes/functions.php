@@ -19,6 +19,13 @@ function register_user($username, $email, $password, $referred_by = null) {
         return false;
     }
 }
+
+function get_status_badge($status) {
+    return $status === 'completed' ? 'success' :
+           ($status === 'pending' ? 'warning' :
+           ($status === 'processing' ? 'info' : 'danger'));
+}
+
 function validate_registration($data, $password, $confirm_password, $terms_accepted) {
     $errors = [];
     
