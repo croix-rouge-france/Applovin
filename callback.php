@@ -1,19 +1,23 @@
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
-require_once __DIR__ . '/includes/config.php';
-require_once __DIR__ . '/includes/db.php';
-
 use Paydunya\Setup;
 
-// Hardcoded PayDunya API keys (replace with your actual keys)
-define('PAYDUNYA_MASTER_KEY', '61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP'); // e.g., 'm_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-define('PAYDUNYA_PRIVATE_KEY', 'test_private_7yq2nkCQckLYWOfFpiRFFM1lUBV'); // e.g., 'live_private_xxxxxxxx'
-define('PAYDUNYA_TOKEN', 'Jpjdn5hYIsSMfJpw35oR'); // e.g., 'xxxxxxxxxxxxxxxxxxxx'
+// Hardcoded PayDunya API keys
+define('PAYDUNYA_MASTER_KEY', '61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP');
+define('PAYDUNYA_PRIVATE_KEY', 'test_private_7yq2nkCQckLYWOfFpiRFFM1lUBV');
+define('PAYDUNYA_TOKEN', 'Jpjdn5hYIsSMfJpw35oR');
 
-// Configure Paydunya
+// Configure PayDunya
 Setup::setMasterKey(PAYDUNYA_MASTER_KEY);
 Setup::setPrivateKey(PAYDUNYA_PRIVATE_KEY);
 Setup::setToken(PAYDUNYA_TOKEN);
+Setup::setMode('test');
+
+// Configuration de la connexion à la base de données
+$host = 'mysql-applovin.alwaysdata.net';
+$dbname = 'applovin_db';
+$username = 'applovin';
+$password = '@Motdepasse0000';
 
 // Receive IPN data
 $input = file_get_contents('php://input');
@@ -27,7 +31,7 @@ if (!$data || !isset($data['data']['hash'], $data['data']['status'], $data['data
 }
 
 // Verify the hash
-$expected_hash = hash_hmac('sha512', $input, PAYDUNYA_MASTER_KEY);
+$expected_hash = hash('sha512', PAYDUNYA_MASTER_KEY);
 if ($expected_hash !== $data['data']['hash']) {
     http_response_code(401);
     file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Hash IPN invalide - Attendu: $expected_hash, Reçu: {$data['data']['hash']}\n", FILE_APPEND);
@@ -46,8 +50,28 @@ $network = $custom_data['network'] ?? 'N/A';
 $country = $custom_data['country'] ?? 'N/A';
 $phone = $custom_data['phone'] ?? 'N/A';
 
+// Validate required fields
+if (!$user_id || !is_numeric($user_id) || $amount <= 0) {
+    http_response_code(400);
+    file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Données invalides - user_id: $user_id, amount: $amount\n", FILE_APPEND);
+    exit;
+}
+
 try {
-    $pdo = Database::getInstance()->getConnection();
+    // Connexion PDO
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+    // Vérifier si l'IPN a déjà été traité
+    $stmt = $pdo->prepare("SELECT status FROM deposits WHERE invoice_token = ? AND user_id = ?");
+    $stmt->execute([$invoice_token, $user_id]);
+    $existing = $stmt->fetch();
+    if ($existing && $existing['status'] === 'completed') {
+        http_response_code(200);
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : IPN déjà traité pour token $invoice_token\n", FILE_APPEND);
+        exit;
+    }
 
     // Start a transaction
     $pdo->beginTransaction();
