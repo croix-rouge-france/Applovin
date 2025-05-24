@@ -2,56 +2,101 @@
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/db.php';
+
 use Paydunya\Setup;
 
-// Configurer Paydunya
-Setup::setMasterKey(getenv('PAYDUNYA_MASTER_KEY') ?: throw new Exception('PAYDUNYA_MASTER_KEY manquant'));
+// Hardcoded PayDunya API keys (replace with your actual keys)
+define('PAYDUNYA_MASTER_KEY', '61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP'); // e.g., 'm_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+define('PAYDUNYA_PRIVATE_KEY', 'test_private_7yq2nkCQckLYWOfFpiRFFM1lUBV'); // e.g., 'live_private_xxxxxxxx'
+define('PAYDUNYA_TOKEN', 'Jpjdn5hYIsSMfJpw35oR'); // e.g., 'xxxxxxxxxxxxxxxxxxxx'
 
-// Recevoir les données IPN
+// Configure Paydunya
+Setup::setMasterKey(PAYDUNYA_MASTER_KEY);
+Setup::setPrivateKey(PAYDUNYA_PRIVATE_KEY);
+Setup::setToken(PAYDUNYA_TOKEN);
+
+// Receive IPN data
 $input = file_get_contents('php://input');
 $data = json_decode($input, true);
 
+// Validate IPN data
 if (!$data || !isset($data['data']['hash'], $data['data']['status'], $data['data']['invoice']['token'])) {
     http_response_code(400);
-    file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : IPN invalide\n", FILE_APPEND);
+    file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : IPN invalide - Données manquantes\n", FILE_APPEND);
     exit;
 }
 
-// Vérifier le hash
-$expected_hash = hash_hmac('sha512', $input, getenv('PAYDUNYA_MASTER_KEY'));
+// Verify the hash
+$expected_hash = hash_hmac('sha512', $input, PAYDUNYA_MASTER_KEY);
 if ($expected_hash !== $data['data']['hash']) {
     http_response_code(401);
-    file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Hash IPN invalide\n", FILE_APPEND);
+    file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Hash IPN invalide - Attendu: $expected_hash, Reçu: {$data['data']['hash']}\n", FILE_APPEND);
     exit;
 }
 
-// Traiter la notification
+// Extract payment details
 $invoice_token = $data['data']['invoice']['token'];
 $status = $data['data']['status'];
-$custom_data = $data['data']['invoice']['custom_data'];
+$custom_data = $data['data']['invoice']['custom_data'] ?? [];
 $user_id = $custom_data['user_id'] ?? null;
 $plan_id = $custom_data['plan_id'] ?? null;
-$payment_id = $custom_data['payment_id'] ?? null;
-$amount = $data['data']['invoice']['total_amount'] ?? 0;
+$amount = $data['data']['invoice']['total_amount'] ?? 0; // Amount in XOF
+$payment_method = $data['data']['invoice']['payment_method'] ?? 'mobile_money';
+$network = $custom_data['network'] ?? 'N/A';
+$country = $custom_data['country'] ?? 'N/A';
+$phone = $custom_data['phone'] ?? 'N/A';
 
 try {
-    $pdo = getDbConnection();
-    $stmt = $pdo->prepare("UPDATE deposits SET status = ? WHERE invoice_token = ?");
-    $stmt->execute([$status, $invoice_token]);
+    $pdo = Database::getInstance()->getConnection();
 
-    // Journaliser la mise à jour
-    file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : IPN reçu - Token: $invoice_token, Statut: $status, User: $user_id, Plan: $plan_id\n", FILE_APPEND);
+    // Start a transaction
+    $pdo->beginTransaction();
 
-    // Si le paiement est confirmé, envoyer une notification (par email, par exemple)
-    if ($status === 'completed') {
-        // Exemple : Envoyer un email (nécessite une bibliothèque comme PHPMailer)
-        // mail($user_email, "Paiement confirmé", "Votre paiement de $amount XOF pour le plan $plan_id a été confirmé.");
-        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Paiement confirmé pour $user_id\n", FILE_APPEND);
+    // Update deposits table
+    $stmt = $pdo->prepare("UPDATE deposits 
+                           SET status = ?, amount = ?, payment_method = ?, network = ?, country = ?, phone = ?, updated_at = NOW() 
+                           WHERE invoice_token = ? AND user_id = ?");
+    $stmt->execute([$status, $amount, $payment_method, $network, $country, $phone, $invoice_token, $user_id]);
+
+    if ($stmt->rowCount() === 0) {
+        throw new Exception("Aucun dépôt trouvé pour le token $invoice_token et user_id $user_id");
     }
+
+    // If payment is confirmed, update transactions and user balance
+    if ($status === 'completed') {
+        // Convert amount to USD
+        $usd_amount = $amount / (defined('EXCHANGE_RATE') ? EXCHANGE_RATE : 600);
+
+        // Insert into transactions table
+        $stmt = $pdo->prepare("INSERT INTO transactions (user_id, type, amount, status, plan_id, created_at) 
+                               VALUES (?, 'deposit', ?, 'completed', ?, NOW())");
+        $stmt->execute([$user_id, $usd_amount, $plan_id]);
+
+        // Update user balance
+        $stmt = $pdo->prepare("UPDATE users 
+                               SET balance = balance + ?, invested = invested + ? 
+                               WHERE id = ?");
+        $stmt->execute([$usd_amount, $usd_amount, $user_id]);
+
+        // Log success
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Paiement confirmé - Token: $invoice_token, User: $user_id, Plan: $plan_id, Montant: $amount XOF ($usd_amount USD)\n", FILE_APPEND);
+    }
+
+    // Commit transaction
+    $pdo->commit();
+
+    // Log successful processing
+    file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : IPN traité - Token: $invoice_token, Statut: $status, User: $user_id, Plan: $plan_id\n", FILE_APPEND);
 
     http_response_code(200);
 } catch (Exception $e) {
+    // Rollback transaction on error
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
     http_response_code(500);
     file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur IPN : " . $e->getMessage() . "\n", FILE_APPEND);
+    exit;
 }
 ?>
