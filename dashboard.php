@@ -12,18 +12,14 @@ require_once 'includes/functions.php';
 // Vérification d'authentification
 try {
     check_auth();
-    
     if (!isset($_SESSION['user_id'])) {
         throw new Exception("Session utilisateur invalide");
     }
 
-    // Obtenir l'instance de PDO via la classe Database
-    $db = Database::getInstance();
-    $pdo = $db->getConnection();
-
     $user_id = $_SESSION['user_id'];
-    
-    // Requête sécurisée avec gestion du referral_code
+    $pdo = Database::getInstance()->getConnection();
+
+    // Récupérer les infos utilisateur
     $stmt = $pdo->prepare("SELECT id, username, email, is_admin, 
                           IFNULL(referral_code, 'default_ref') AS referral_code 
                           FROM users WHERE id = ?");
@@ -32,26 +28,14 @@ try {
     }
     
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
     if (!$user) {
         session_destroy();
         throw new Exception("Utilisateur introuvable");
     }
 
-    // Calcul du solde
-    $balance = [
-        'current' => 0,
-        'invested' => 0,
-        'profit' => 0,
-        'withdrawals' => 0,
-        'bonus' => 0
-    ];
-    
-    try {
-        $balance = calculate_user_balance($user_id);
-    } catch (Exception $e) {
-        error_log("Erreur calcul balance: " . $e->getMessage());
-    }
+    // Calcul du solde avec log
+    $balance = calculate_user_balance($user_id);
+    file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Balance pour user_id $user_id : " . json_encode($balance) . "\n", FILE_APPEND);
 
     // Récupération des dépôts
     $deposits = [];
@@ -75,16 +59,14 @@ try {
         error_log("Erreur récupération transactions: " . $e->getMessage());
     }
 
-    // Récupération des statistiques d'équipe en temps réel
+    // Récupération des statistiques d'équipe
     $team_stats = [
         'team_recharge' => 0,
         'team_withdrawal' => 0,
         'new_team_first_recharge' => 0,
         'new_team_first_withdrawal' => 0
     ];
-    
     try {
-        // Recharges et retraits de l'équipe
         $stmt = $pdo->prepare("SELECT 
                               SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END) as team_recharge,
                               SUM(CASE WHEN type = 'withdrawal' THEN amount ELSE 0 END) as team_withdrawal
@@ -94,13 +76,11 @@ try {
                               )");
         $stmt->execute([$user_id]);
         $team_data = $stmt->fetch(PDO::FETCH_ASSOC);
-        
         if ($team_data) {
             $team_stats['team_recharge'] = $team_data['team_recharge'] ?? 0;
             $team_stats['team_withdrawal'] = $team_data['team_withdrawal'] ?? 0;
         }
         
-        // Premières recharges et retraits
         $stmt = $pdo->prepare("SELECT COUNT(DISTINCT user_id) as count FROM transactions 
                               WHERE type = 'deposit' AND user_id IN (
                                   SELECT referred_id FROM referrals WHERE referrer_id = ?
@@ -124,9 +104,7 @@ try {
         'level2' => ['invited' => 0, 'validated' => 0, 'income' => 0],
         'level3' => ['invited' => 0, 'validated' => 0, 'income' => 0]
     ];
-    
     try {
-        // Niveau 1 (direct referrals)
         $stmt = $pdo->prepare("SELECT COUNT(*) as invited, 
                               SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as validated,
                               SUM(referral_income) as income
@@ -142,7 +120,6 @@ try {
             ];
         }
         
-        // Niveau 2
         $stmt = $pdo->prepare("SELECT COUNT(*) as invited, 
                               SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as validated,
                               SUM(referral_income) as income
@@ -158,7 +135,6 @@ try {
             ];
         }
         
-        // Niveau 3
         $stmt = $pdo->prepare("SELECT COUNT(*) as invited, 
                               SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as validated,
                               SUM(referral_income) as income
@@ -216,7 +192,6 @@ require_once 'includes/header.php';
         min-height: 100vh;
     }
 
-    /* Conteneur responsive */
     .container {
         width: 95%;
         max-width: 1800px;
@@ -224,7 +199,6 @@ require_once 'includes/header.php';
         margin: 0 auto;
     }
 
-    /* Effet verre moderne */
     .glass-card {
         background: var(--glass-effect);
         backdrop-filter: blur(10px);
@@ -234,7 +208,6 @@ require_once 'includes/header.php';
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     }
 
-    /* En-tête avec animation de dégradé */
     .platform-header {
         composes: glass-card;
         padding: 2.5rem;
@@ -265,7 +238,6 @@ require_once 'includes/header.php';
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    /* Badges animés */
     .badge {
         display: inline-block;
         padding: 0.5em 1em;
@@ -286,7 +258,6 @@ require_once 'includes/header.php';
         100% { transform: scale(1); }
     }
 
-    /* Cartes d'investissement uniques */
     .investment-card {
         composes: glass-card;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -319,7 +290,6 @@ require_once 'includes/header.php';
         overflow: hidden;
     }
 
-    /* Tableau avec effets uniques */
     .investment-table {
         width: 100%;
         border-collapse: separate;
@@ -365,7 +335,6 @@ require_once 'includes/header.php';
         background: rgba(67, 97, 238, 0.05);
     }
 
-    /* Section parrainage avec dégradé unique */
     .referral-section {
         composes: glass-card;
         padding: 2rem;
@@ -399,7 +368,6 @@ require_once 'includes/header.php';
         pointer-events: none;
     }
 
-    /* Boutons avec effets spéciaux */
     .btn-conoco {
         background: var(--primary-gradient);
         color: white;
@@ -434,7 +402,6 @@ require_once 'includes/header.php';
         left: 100%;
     }
 
-    /* Carte de solde animée */
     .balance-card {
         composes: glass-card;
         padding: 2rem;
@@ -457,7 +424,6 @@ require_once 'includes/header.php';
         text-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
 
-    /* Responsive design avancé */
     @media (max-width: 768px) {
         .container {
             padding: 1rem;
@@ -489,7 +455,6 @@ require_once 'includes/header.php';
         }
     }
 
-    /* Effets spéciaux */
     .floating {
         animation: floating 3s ease-in-out infinite;
     }
@@ -535,15 +500,15 @@ require_once 'includes/header.php';
                 <!-- Carte de solde -->
                 <div class="balance-card">
                     <h5 class="mb-3"><i class="fas fa-wallet me-2"></i>Solde USDT</h5>
-                    <h2 class="mb-4"><?= number_format($balance['current'], 2) ?> USDT</h2>
+                    <h2 class="mb-4"><?= number_format($balance['current'] ?? 0, 2) ?> USDT</h2>
                     <div class="d-flex justify-content-between">
                         <div>
                             <small>Investi</small>
-                            <h5><?= number_format($balance['invested'], 2) ?> USDT</h5>
+                            <h5><?= number_format($balance['invested'] ?? 0, 2) ?> USDT</h5>
                         </div>
                         <div>
                             <small>Profit</small>
-                            <h5><?= number_format($balance['profit'], 2) ?> USDT</h5>
+                            <h5><?= number_format($balance['profit'] ?? 0, 2) ?> USDT</h5>
                         </div>
                     </div>
                 </div>
@@ -619,7 +584,7 @@ require_once 'includes/header.php';
                                         <td><?= date('d/m/Y H:i', strtotime($deposit['created_at'])) ?></td>
                                         <td>
                                             <?= number_format($deposit['amount'], 0) ?> XOF
-                                            (≈ <?= number_format($deposit['amount'] / (defined('EXCHANGE_RATE') ? EXCHANGE_RATE : 600), 2) ?> USD)
+                                            (≈ <?= number_format($deposit['amount'] / (defined('EXCHANGE_RATE') ? EXCHANGE_RATE : 600), 2) ?> USDT)
                                         </td>
                                         <td><?= htmlspecialchars($deposit['network'] ?? 'N/A') ?></td>
                                         <td><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $deposit['country'] ?? 'N/A'))) ?></td>
@@ -871,8 +836,6 @@ require_once 'includes/header.php';
         const link = document.getElementById("referralLink");
         link.select();
         document.execCommand("copy");
-        
-        // Notification simple
         alert("Lien de parrainage copié avec succès !");
     }
     
@@ -886,7 +849,6 @@ require_once 'includes/header.php';
         fetch('api/get_live_data.php?user_id=<?= $user_id ?>')
             .then(response => response.json())
             .then(data => {
-                // Mettre à jour les données d'équipe
                 document.querySelector('#team-tab-pane .text-primary:nth-child(1)').textContent = 
                     data.team_recharge.toFixed(2) + ' USDT';
                 document.querySelector('#team-tab-pane .text-primary:nth-child(2)').textContent = 
@@ -896,7 +858,6 @@ require_once 'includes/header.php';
                 document.querySelector('#team-tab-pane h4:nth-child(2)').textContent = 
                     data.new_team_first_withdrawal;
                 
-                // Mettre à jour les données d'invitation
                 for (let level = 1; level <= 3; level++) {
                     const levelData = data['level' + level];
                     document.querySelector(`#commission-tab-pane h4:nth-child(${level * 3 - 2})`).textContent = 
@@ -908,7 +869,6 @@ require_once 'includes/header.php';
             .catch(error => console.error('Erreur:', error));
     }
     
-    // Rafraîchir les données toutes les 10 secondes
     setInterval(refreshData, 300000);
     </script>
 </body>
