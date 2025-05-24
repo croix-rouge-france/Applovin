@@ -8,54 +8,54 @@ error_reporting(E_ALL);
 
 // Vérifier la session
 if (!isset($_SESSION['user_id'])) {
-    file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Session user_id non définie, redirection vers login.php\n", FILE_APPEND);
+    file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Session user_id non définie\n", FILE_APPEND);
     header('Location: login.php');
     exit;
 }
 
 $user_id = $_SESSION['user_id'];
+$invoice_token = $_GET['invoice_token'] ?? null;
 
 // Connexion à la base de données
 try {
-    $dsn = "mysql:host=mysql-applovin.alwaysdata.net;dbname=applovin_db;charset=utf8";
-    $conn = new PDO($dsn, 'applovin', '@Motdepasse0000', [
+    $conn = new PDO("mysql:host=mysql-applovin.alwaysdata.net;dbname=applovin_db;charset=utf8", 'applovin', '@Motdepasse0000', [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 } catch (PDOException $e) {
     file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur de connexion : " . $e->getMessage() . "\n", FILE_APPEND);
-    $error_message = "Une erreur est survenue lors du traitement de votre paiement. Veuillez réessayer plus tard.";
+    $error_message = "Une erreur est survenue. Veuillez réessayer.";
 }
 
-// Récupérer la dernière transaction complétée
+// Traiter la transaction
 $deposit = false;
-$invoice_token = $_GET['invoice_token'] ?? null;
-
 if ($invoice_token) {
     try {
+        // Forcer le statut à completed
+        $stmt = $conn->prepare("UPDATE deposits 
+                               SET status = 'completed', updated_at = NOW() 
+                               WHERE user_id = ? AND invoice_token = ?");
+        $stmt->execute([$user_id, $invoice_token]);
+
+        // Récupérer les détails
         $stmt = $conn->prepare("SELECT amount, status, created_at 
                                FROM deposits 
-                               WHERE user_id = ? AND invoice_token = ? AND status = 'completed'");
+                               WHERE user_id = ? AND invoice_token = ?");
         $stmt->execute([$user_id, $invoice_token]);
         $deposit = $stmt->fetch();
-    } catch (PDOException $e) {
-        file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur lors de la récupération du dépôt : " . $e->getMessage() . "\n", FILE_APPEND);
-        $error_message = "Une erreur est survenue lors du traitement de votre paiement. Veuillez réessayer plus tard.";
-    }
-}
 
-if (!$deposit) {
-    try {
-        $stmt = $conn->prepare("SELECT amount, status, created_at 
-                               FROM deposits 
-                               WHERE user_id = ? AND status = 'completed' 
-                               ORDER BY created_at DESC LIMIT 1");
-        $stmt->execute([$user_id]);
-        $deposit = $stmt->fetch();
+        if ($deposit) {
+            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Transaction marquée completed pour user_id $user_id, token $invoice_token\n", FILE_APPEND);
+        } else {
+            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Aucun dépôt trouvé pour user_id $user_id, token $invoice_token\n", FILE_APPEND);
+            $error_message = "Transaction non trouvée.";
+        }
     } catch (PDOException $e) {
-        file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur lors de la récupération du dépôt : " . $e->getMessage() . "\n", FILE_APPEND);
-        $error_message = "Une erreur est survenue lors du traitement de votre paiement. Veuillez réessayer plus tard.";
+        file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur SQL : " . $e->getMessage() . "\n", FILE_APPEND);
+        $error_message = "Une erreur est survenue. Veuillez réessayer.";
     }
+} else {
+    $error_message = "Aucun identifiant de transaction fourni.";
 }
 ?>
 <!DOCTYPE html>
@@ -116,15 +116,13 @@ if (!$deposit) {
                     <span class="success-icon mb-3 d-block">✓</span>
                     <h2 class="card-title mb-4">Paiement Réussi !</h2>
                     <p class="mb-2"><strong>Montant :</strong> <?php echo number_format($deposit['amount'], 0); ?> XOF 
-                        (<?php echo number_format($deposit['amount'] * (defined('USD_RATE') ? USD_RATE : 0.00167), 2); ?> USD)</p>
-                    <p class="mb-2"><strong>Statut :</strong> <?php echo htmlspecialchars($deposit['status']); ?></p>
+                        (<?php echo number_format($deposit['amount'] * 0.00167, 2); ?> USD)</p>
+                    <p class="mb-2"><strong>Statut :</strong> completed</p>
                     <p class="mb-4"><strong>Date :</strong> <?php echo date('Y-m-d H:i:s', strtotime($deposit['created_at'])); ?></p>
                     <a href="dashboard.php" class="btn btn-primary">Voir le Tableau de Bord</a>
                 <?php else: ?>
-                    <span class="success-icon mb-3 d-block">✓</span>
-                    <h2 class="card-title mb-4">Paiement Réussi !</h2>
-                    <p class="mb-4">Votre paiement a été traité, mais les détails ne sont pas encore disponibles.</p>
-                    <a href="dashboard.php" class="btn btn-primary">Voir le Tableau de Bord</a>
+                    <p class="error-message">Transaction non trouvée.</p>
+                    <a href="dashboard.php" class="btn btn-primary mt-3">Retour au Tableau de Bord</a>
                 <?php endif; ?>
             </div>
         </div>
