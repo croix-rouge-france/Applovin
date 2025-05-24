@@ -38,7 +38,7 @@ define('USD_RATE', 0.0017); // 1 XOF = 0.0017 USD
 // CONFIGURATION GÉNÉRALE
 // ====================
 if (!defined('APP_NAME')) define('APP_NAME', 'APPlovin Investment');
-if (!defined('SITE_URL')) define('SITE_URL', 'https://applovin-invest.onrender.com');
+if (!defined('SITE_URL')) define('SITE_URL', 'https://applovin-yy2u.onrender.com');
 if (!defined('APP_CURRENCY')) define('APP_CURRENCY', 'USDT');
 if (!defined('SITE_EMAIL')) define('SITE_EMAIL', 'williamgreatford@gmail.com');
 if (!defined('WELCOME_BONUS')) define('WELCOME_BONUS', 0); // 5 USDT
