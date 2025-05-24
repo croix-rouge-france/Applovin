@@ -68,7 +68,7 @@ function validate_registration($data, $password, $confirm_password, $terms_accep
  */
 function calculate_user_balance($user_id) {
     // Configuration de la connexion à la base de données
-    $host = 'mysql';
+    $host = 'mysql-applovin.alwaysdata.net';
     $dbname = 'applovin_db';
     $username = 'applovin';
     $password = '@Motdepasse0000';
