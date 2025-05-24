@@ -67,9 +67,13 @@ function validate_registration($data, $password, $confirm_password, $terms_accep
  * Calcule le solde de l'utilisateur avec plus de détails
  */
 function calculate_user_balance($user_id) {
-    global $pdo;
+    // Configuration de la connexion à la base de données
+    $host = 'mysql';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
     
-    // Initialisation du tableau de balance avec des valeurs par défaut
+    // Initialisation du tableau de balance
     $balance = [
         'current' => 0,
         'invested' => 0,
@@ -82,20 +86,26 @@ function calculate_user_balance($user_id) {
     ];
     
     try {
-        // 1. Dépôts totaux (investissements)
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        
+        // Taux de change
+        $exchange_rate = defined('EXCHANGE_RATE') ? EXCHANGE_RATE : 600;
+
+        // 1. Dépôts confirmés (en USD)
         $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(
-                CASE 
-                    WHEN currency = 'XOF' THEN usd_amount 
-                    ELSE amount 
-                END
-            ), 0) as total_deposits
+            SELECT COALESCE(SUM(amount / ?), 0) as total_deposits
             FROM deposits 
-            WHERE user_id = ? AND status = 'completed'
+            WHERE user_id = ? AND status = 'completed' AND currency = 'XOF'
         ");
-        $stmt->execute([$user_id]);
-        $balance['invested'] = $stmt->fetchColumn();
+        $stmt->execute([$exchange_rate, $user_id]);
+        $balance['invested'] = (float) $stmt->fetchColumn();
         $balance['current'] = $balance['invested'];
+
+        // Log pour débogage
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Dépôts pour user_id $user_id : {$balance['invested']} USD\n", FILE_APPEND);
 
         // 2. Retraits effectués
         $stmt = $pdo->prepare("
@@ -104,46 +114,41 @@ function calculate_user_balance($user_id) {
             WHERE user_id = ? AND status = 'success'
         ");
         $stmt->execute([$user_id]);
-        $balance['withdrawals'] = $stmt->fetchColumn();
+        $balance['withdrawals'] = (float) $stmt->fetchColumn();
         $balance['current'] -= $balance['withdrawals'];
 
-        // 3. Profit des investissements
+        // 3. Profits
         $stmt = $pdo->prepare("
             SELECT COALESCE(SUM(profit), 0) as total_profit 
             FROM investment_transactions 
             WHERE user_id = ?
         ");
         $stmt->execute([$user_id]);
-        $balance['profit'] = $stmt->fetchColumn();
+        $balance['profit'] = (float) $stmt->fetchColumn();
         $balance['current'] += $balance['profit'];
 
-        // 4. Bonus de parrainage
+        // 4. Bonus
         $stmt = $pdo->prepare("
             SELECT COALESCE(SUM(amount), 0) as total_bonus 
             FROM referral_bonuses 
             WHERE user_id = ?
         ");
         $stmt->execute([$user_id]);
-        $balance['bonus'] = $stmt->fetchColumn();
+        $balance['bonus'] = (float) $stmt->fetchColumn();
         $balance['current'] += $balance['bonus'];
 
-        // 5. Recharges de l'équipe (filleuls)
+        // 5. Recharges équipe
         $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(
-                CASE 
-                    WHEN currency = 'XOF' THEN usd_amount 
-                    ELSE amount 
-                END
-            ), 0) as team_recharge
+            SELECT COALESCE(SUM(amount / ?), 0) as team_recharge
             FROM deposits 
             WHERE user_id IN (
                 SELECT referred_id FROM referrals WHERE referrer_id = ?
-            ) AND status = 'completed'
+            ) AND status = 'completed' AND currency = 'XOF'
         ");
-        $stmt->execute([$user_id]);
-        $balance['team_recharge'] = $stmt->fetchColumn();
+        $stmt->execute([$exchange_rate, $user_id]);
+        $balance['team_recharge'] = (float) $stmt->fetchColumn();
 
-        // 6. Retraits de l'équipe (filleuls)
+        // 6. Retraits équipe
         $stmt = $pdo->prepare("
             SELECT COALESCE(SUM(amount), 0) as team_withdrawal
             FROM withdrawals 
@@ -152,23 +157,22 @@ function calculate_user_balance($user_id) {
             ) AND status = 'success'
         ");
         $stmt->execute([$user_id]);
-        $balance['team_withdrawal'] = $stmt->fetchColumn();
+        $balance['team_withdrawal'] = (float) $stmt->fetchColumn();
 
-        // Calcul du montant disponible pour retrait (profit + bonus - retraits déjà effectués)
+        // Montant disponible pour retrait
         $balance['available_for_withdrawal'] = max(0, 
             ($balance['profit'] + $balance['bonus']) - $balance['withdrawals']
         );
 
+        // Log final
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Balance finale pour user_id $user_id : " . json_encode($balance) . "\n", FILE_APPEND);
+
         return $balance;
         
     } catch (PDOException $e) {
-        // Journalisation de l'erreur
         error_log("[".date('Y-m-d H:i:s')."] Erreur calcul balance (UID:$user_id): " . $e->getMessage());
-        
-        // Envoi d'une alerte par email (optionnel)
-        // mail('admin@site.com', 'Erreur calcul balance', $e->getMessage());
-        
-        return $balance; // Retourne le tableau avec les valeurs par défaut (0)
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur calcul balance (UID:$user_id): " . $e->getMessage() . "\n", FILE_APPEND);
+        return $balance;
     }
 }
 /**
