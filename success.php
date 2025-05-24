@@ -1,8 +1,7 @@
 <?php
 session_start();
-require_once __DIR__ . '/includes/config.php';
 
-// Supprimer l'affichage des erreurs à l'écran
+// Supprimer l'affichage des erreurs
 ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
@@ -16,7 +15,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Connexion à la base de données en code brut
+// Connexion à la base de données
 try {
     $dsn = "mysql:host=mysql-applovin.alwaysdata.net;dbname=applovin_db;charset=utf8";
     $conn = new PDO($dsn, 'applovin', '@Motdepasse0000', [
@@ -28,41 +27,24 @@ try {
     $error_message = "Une erreur est survenue lors du traitement de votre paiement. Veuillez réessayer plus tard.";
 }
 
-// Traiter la transaction (par exemple, via PayDunya invoice_token)
+// Récupérer la dernière transaction complétée
 $deposit = false;
 $invoice_token = $_GET['invoice_token'] ?? null;
 
 if ($invoice_token) {
     try {
-        // Vérifier et mettre à jour la transaction
         $stmt = $conn->prepare("SELECT amount, status, created_at 
                                FROM deposits 
-                               WHERE user_id = ? AND invoice_token = ?");
+                               WHERE user_id = ? AND invoice_token = ? AND status = 'completed'");
         $stmt->execute([$user_id, $invoice_token]);
         $deposit = $stmt->fetch();
-
-        if ($deposit && $deposit['status'] !== 'completed') {
-            // Marquer la transaction comme completed
-            $stmt = $conn->prepare("UPDATE deposits 
-                                   SET status = 'completed', updated_at = NOW() 
-                                   WHERE user_id = ? AND invoice_token = ?");
-            $stmt->execute([$user_id, $invoice_token]);
-
-            // Recharger les détails mis à jour
-            $stmt = $conn->prepare("SELECT amount, status, created_at 
-                                   FROM deposits 
-                                   WHERE user_id = ? AND invoice_token = ?");
-            $stmt->execute([$user_id, $invoice_token]);
-            $deposit = $stmt->fetch();
-
-            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Transaction marquée comme completed pour user_id $user_id, token $invoice_token\n", FILE_APPEND);
-        }
     } catch (PDOException $e) {
-        file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur lors de la mise à jour du dépôt : " . $e->getMessage() . "\n", FILE_APPEND);
+        file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur lors de la récupération du dépôt : " . $e->getMessage() . "\n", FILE_APPEND);
         $error_message = "Une erreur est survenue lors du traitement de votre paiement. Veuillez réessayer plus tard.";
     }
-} else {
-    // Si aucun invoice_token, récupérer le dernier dépôt complété
+}
+
+if (!$deposit) {
     try {
         $stmt = $conn->prepare("SELECT amount, status, created_at 
                                FROM deposits 
@@ -131,7 +113,7 @@ if ($invoice_token) {
                     <p class="error-message"><?php echo htmlspecialchars($error_message); ?></p>
                     <a href="dashboard.php" class="btn btn-primary mt-3">Retour au Tableau de Bord</a>
                 <?php elseif ($deposit): ?>
-                    <span class="success-icon mb-3 d-block">&#10003;</span>
+                    <span class="success-icon mb-3 d-block">✓</span>
                     <h2 class="card-title mb-4">Paiement Réussi !</h2>
                     <p class="mb-2"><strong>Montant :</strong> <?php echo number_format($deposit['amount'], 0); ?> XOF 
                         (<?php echo number_format($deposit['amount'] * (defined('USD_RATE') ? USD_RATE : 0.00167), 2); ?> USD)</p>
@@ -139,7 +121,7 @@ if ($invoice_token) {
                     <p class="mb-4"><strong>Date :</strong> <?php echo date('Y-m-d H:i:s', strtotime($deposit['created_at'])); ?></p>
                     <a href="dashboard.php" class="btn btn-primary">Voir le Tableau de Bord</a>
                 <?php else: ?>
-                    <span class="success-icon mb-3 d-block">&#10003;</span>
+                    <span class="success-icon mb-3 d-block">✓</span>
                     <h2 class="card-title mb-4">Paiement Réussi !</h2>
                     <p class="mb-4">Votre paiement a été traité, mais les détails ne sont pas encore disponibles.</p>
                     <a href="dashboard.php" class="btn btn-primary">Voir le Tableau de Bord</a>
