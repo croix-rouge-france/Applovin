@@ -1,31 +1,50 @@
 <?php
-require_once 'db.php';
-$db = Database::getInstance()->getConnection(); // Assure l'initialisation correcte
 
-
-
+/**
+ * Enregistre un nouvel utilisateur
+ */
 function register_user($username, $email, $password, $referred_by = null) {
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username_db = 'applovin';
+    $password_db = '@Motdepasse0000';
+
     try {
-        $db = Database::getInstance();
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username_db, $password_db);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
         $hashed_password = password_hash($password, PASSWORD_BCRYPT);
-        
-        $stmt = $db->prepare("INSERT INTO users (username, email, password, referred_by) 
+
+        $stmt = $pdo->prepare("INSERT INTO users (username, email, password, referred_by) 
                              VALUES (?, ?, ?, ?)");
         $stmt->execute([$username, $email, $hashed_password, $referred_by]);
-        
-        return $db->lastInsertId();
+
+        // Log pour débogage
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Inscription user_id {$pdo->lastInsertId()} : username=$username\n", FILE_APPEND);
+
+        return $pdo->lastInsertId();
     } catch (PDOException $e) {
-        log_error("Erreur inscription: " . $e->getMessage());
+        error_log("[".date('Y-m-d H:i:s')."] Erreur inscription: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur inscription: " . $e->getMessage() . "\n", FILE_APPEND);
         return false;
     }
 }
 
+/**
+ * Retourne la classe de badge en fonction du statut
+ */
 function get_status_badge($status) {
     return $status === 'completed' ? 'success' :
            ($status === 'pending' ? 'warning' :
            ($status === 'processing' ? 'info' : 'danger'));
 }
 
+/**
+ * Valide les données d'inscription
+ */
 function validate_registration($data, $password, $confirm_password, $terms_accepted) {
     $errors = [];
     
@@ -175,35 +194,41 @@ function calculate_user_balance($user_id) {
         return $balance;
     }
 }
+
 /**
  * Récupère les transactions récentes avec pagination
  */
 function get_recent_transactions($user_id, $limit = 5, $type = null) {
-    global $pdo;
-    
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
     try {
-        $sql = "SELECT * FROM transactions WHERE user_id = :user_id";
-        $params = [':user_id' => $user_id];
-        
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+        $sql = "SELECT * FROM transactions WHERE user_id = ?";
+        $params = [$user_id];
+
         if ($type) {
-            $sql .= " AND type = :type";
-            $params[':type'] = $type;
+            $sql .= " AND type = ?";
+            $params[] = $type;
         }
-        
-        $sql .= " ORDER BY created_at DESC LIMIT :limit";
-        $params[':limit'] = (int)$limit;
-        
+
+        $sql .= " ORDER BY created_at DESC LIMIT ?";
+        $params[] = (int)$limit;
+
         $stmt = $pdo->prepare($sql);
-        
-        foreach ($params as $key => $value) {
-            $paramType = $key === ':limit' ? PDO::PARAM_INT : PDO::PARAM_STR;
-            $stmt->bindValue($key, $value, $paramType);
-        }
-        
-        $stmt->execute();
+        $stmt->execute($params);
+
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        error_log("Erreur get_recent_transactions: " . $e->getMessage());
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_recent_transactions: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_recent_transactions: " . $e->getMessage() . "\n", FILE_APPEND);
         return [];
     }
 }
@@ -212,8 +237,12 @@ function get_recent_transactions($user_id, $limit = 5, $type = null) {
  * Récupère les statistiques de parrainage complètes
  */
 function get_user_referrals($user_id) {
-    global $pdo;
-    
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
     $stats = [
         'level1' => ['count' => 0, 'active' => 0, 'income' => 0],
         'level2' => ['count' => 0, 'active' => 0, 'income' => 0],
@@ -223,8 +252,13 @@ function get_user_referrals($user_id) {
         'first_recharge_count' => 0,
         'first_withdrawal_count' => 0
     ];
-    
+
     try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
         // Niveau 1 (directs)
         $stmt = $pdo->prepare("SELECT 
                               COUNT(*) as count,
@@ -318,16 +352,15 @@ function get_user_referrals($user_id) {
         return $stats;
         
     } catch (PDOException $e) {
-        error_log("Erreur get_user_referrals: " . $e->getMessage());
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_user_referrals: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_user_referrals: " . $e->getMessage() . "\n", FILE_APPEND);
         return $stats;
     }
 }
 
 /**
- * Fonctions utilitaires
+ * Génère un code de parrainage unique
  */
-
-
 function generate_referral_code() {
     $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     $code = '';
@@ -337,10 +370,22 @@ function generate_referral_code() {
     return $code;
 }
 
+/**
+ * Récupère les informations d'un utilisateur par ID
+ */
 function get_user_by_id($user_id) {
-    global $pdo;
-    
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
     try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
         $stmt = $pdo->prepare("SELECT 
                               id, username, email, is_admin, 
                               IFNULL(referral_code, 'default_ref') AS referral_code,
@@ -349,13 +394,14 @@ function get_user_by_id($user_id) {
         $stmt->execute([$user_id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        error_log("Erreur get_user_by_id: " . $e->getMessage());
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_user_by_id: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_user_by_id: " . $e->getMessage() . "\n", FILE_APPEND);
         return false;
     }
 }
 
 /**
- * Fonctions CinetPay
+ * Traite un transfert via CinetPay
  */
 function process_cinetpay_transfer($phone, $network, $amount, $user_id) {
     $api_url = "https://api.cinetpay.com/v2/transfer";
@@ -396,6 +442,9 @@ function process_cinetpay_transfer($phone, $network, $amount, $user_id) {
     return $result['data'];
 }
 
+/**
+ * Initialise un paiement via CinetPay
+ */
 function init_cinetpay_payment($transaction_id, $amount, $phone, $network) {
     $api_url = "https://api.cinetpay.com/v2/payment";
     
@@ -439,23 +488,31 @@ function init_cinetpay_payment($transaction_id, $amount, $phone, $network) {
 }
 
 /**
- * Fonctions pour les retraits
+ * Récupère les retraits d'un utilisateur
  */
 function get_user_withdrawals($user_id, $limit = 10) {
-    global $pdo;
-    
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
     try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
         $stmt = $pdo->prepare("SELECT * FROM withdrawals 
                               WHERE user_id = ? 
                               ORDER BY created_at DESC 
                               LIMIT ?");
-        $stmt->bindValue(1, $user_id, PDO::PARAM_INT);
-        $stmt->bindValue(2, $limit, PDO::PARAM_INT);
-        $stmt->execute();
-        
+        $stmt->execute([$user_id, (int)$limit]);
+
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        error_log("Erreur get_user_withdrawals: " . $e->getMessage());
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_user_withdrawals: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_user_withdrawals: " . $e->getMessage() . "\n", FILE_APPEND);
         return [];
     }
 }
@@ -464,16 +521,26 @@ function get_user_withdrawals($user_id, $limit = 10) {
  * Vérifie les nouveaux dépôts
  */
 function check_new_deposits($user_id) {
-    global $pdo;
-    
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
     try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
         $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM transactions 
                               WHERE user_id = ? AND type = 'deposit' 
                               AND created_at >= NOW() - INTERVAL 1 DAY");
         $stmt->execute([$user_id]);
         return $stmt->fetch(PDO::FETCH_ASSOC)['count'];
     } catch (PDOException $e) {
-        error_log("Erreur check_new_deposits: " . $e->getMessage());
+        error_log("[".date('Y-m-d H:i:s')."] Erreur check_new_deposits: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur check_new_deposits: " . $e->getMessage() . "\n", FILE_APPEND);
         return 0;
     }
 }
@@ -482,8 +549,12 @@ function check_new_deposits($user_id) {
  * Récupère les statistiques d'équipe complètes
  */
 function get_team_stats($user_id) {
-    global $pdo;
-    
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
     $stats = [
         'team_recharge' => 0,
         'team_withdrawal' => 0,
@@ -492,8 +563,13 @@ function get_team_stats($user_id) {
         'active_members' => 0,
         'total_members' => 0
     ];
-    
+
     try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
         // Membres de l'équipe
         $stmt = $pdo->prepare("SELECT 
                               COUNT(*) as total_members,
@@ -548,55 +624,146 @@ function get_team_stats($user_id) {
         return $stats;
         
     } catch (PDOException $e) {
-        error_log("Erreur get_team_stats: " . $e->getMessage());
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_team_stats: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_team_stats: " . $e->getMessage() . "\n", FILE_APPEND);
         return $stats;
     }
 }
 
-
-// Fonctions pour le dashboard admin
+/**
+ * Récupère le nombre total d'utilisateurs
+ */
 function get_total_users() {
-    global $pdo;
-    $stmt = $pdo->query("SELECT COUNT(*) FROM users");
-    return $stmt->fetchColumn();
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
+    try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users");
+        return $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_total_users: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_total_users: " . $e->getMessage() . "\n", FILE_APPEND);
+        return 0;
+    }
 }
 
+/**
+ * Récupère le total des dépôts
+ */
 function get_total_deposits() {
-    global $pdo;
-    $stmt = $pdo->query("SELECT SUM(usd_amount) FROM deposits WHERE status = 'completed'");
-    return $stmt->fetchColumn() ?? 0;
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
+    try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+        $stmt = $pdo->query("SELECT SUM(usd_amount) FROM deposits WHERE status = 'completed'");
+        return $stmt->fetchColumn() ?? 0;
+    } catch (PDOException $e) {
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_total_deposits: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_total_deposits: " . $e->getMessage() . "\n", FILE_APPEND);
+        return 0;
+    }
 }
 
+/**
+ * Récupère le total des retraits
+ */
 function get_total_withdrawals() {
-    global $pdo;
-    $stmt = $pdo->query("SELECT SUM(amount) FROM withdrawals WHERE status = 'success'");
-    return $stmt->fetchColumn() ?? 0;
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
+    try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+        $stmt = $pdo->query("SELECT SUM(amount) FROM withdrawals WHERE status = 'success'");
+        return $stmt->fetchColumn() ?? 0;
+    } catch (PDOException $e) {
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_total_withdrawals: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_total_withdrawals: " . $e->getMessage() . "\n", FILE_APPEND);
+        return 0;
+    }
 }
 
+/**
+ * Récupère le nombre d'investissements actifs
+ */
 function get_active_investments() {
-    global $pdo;
-    $stmt = $pdo->query("SELECT COUNT(*) FROM investments WHERE status = 'active'");
-    return $stmt->fetchColumn();
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
+
+    try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+        $stmt = $pdo->query("SELECT COUNT(*) FROM investments WHERE status = 'active'");
+        return $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_active_investments: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_active_investments: " . $e->getMessage() . "\n", FILE_APPEND);
+        return 0;
+    }
 }
 
+/**
+ * Récupère les activités récentes pour le tableau de bord admin
+ */
 function get_recent_activities($limit = 10) {
-    global $pdo;
-    $stmt = $pdo->prepare("
-        SELECT a.*, u.username 
-        FROM audit_log a
-        LEFT JOIN users u ON a.user_id = u.id
-        ORDER BY a.created_at DESC 
-        LIMIT ?
-    ");
-    $stmt->execute([$limit]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
+    // Configuration de la connexion à la base de données
+    $host = 'mysql-applovin.alwaysdata.net';
+    $dbname = 'applovin_db';
+    $username = 'applovin';
+    $password = '@Motdepasse0000';
 
+    try {
+        // Connexion PDO
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+        $stmt = $pdo->prepare("
+            SELECT a.*, u.username 
+            FROM audit_log a
+            LEFT JOIN users u ON a.user_id = u.id
+            ORDER BY a.created_at DESC 
+            LIMIT ?
+        ");
+        $stmt->execute([(int)$limit]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("[".date('Y-m-d H:i:s')."] Erreur get_recent_activities: " . $e->getMessage());
+        file_put_contents(__DIR__ . '/payment.log', date('Y-m-d H:i:s') . " : Erreur get_recent_activities: " . $e->getMessage() . "\n", FILE_APPEND);
+        return [];
+    }
+}
 
 /**
  * Sanitize user input to prevent XSS and other injections
- * @param string $input The input to sanitize
- * @return string The sanitized input
  */
 function sanitize_input($input) {
     if (is_null($input)) {
