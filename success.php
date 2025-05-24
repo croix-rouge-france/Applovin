@@ -14,12 +14,15 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$invoice_token = $_GET['invoice_token'] ?? null;
-$amount = isset($_GET['amount']) ? (float)$_GET['amount'] : 0;
+$token = $_GET['token'] ?? null;
+$amount = isset($_GET['amount']) && is_numeric($_GET['amount']) ? (float)$_GET['amount'] : 0;
 $network = $_GET['network'] ?? 'N/A';
 $country = $_GET['country'] ?? 'N/A';
 $phone = $_GET['phone'] ?? 'N/A';
 $payment_method = $_GET['payment_method'] ?? 'mobile_money';
+
+// Journaliser les paramètres reçus
+file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Paramètres GET : " . print_r($_GET, true) . "\n", FILE_APPEND);
 
 // Connexion à la base de données
 try {
@@ -34,13 +37,13 @@ try {
 
 // Traiter la transaction
 $deposit = false;
-if ($invoice_token && $amount > 0) {
+if ($token && $amount > 0) {
     try {
         // Vérifier si la transaction existe déjà
         $stmt = $conn->prepare("SELECT amount, status, created_at 
                                FROM deposits 
                                WHERE user_id = ? AND invoice_token = ?");
-        $stmt->execute([$user_id, $invoice_token]);
+        $stmt->execute([$user_id, $token]);
         $deposit = $stmt->fetch();
 
         if (!$deposit) {
@@ -48,38 +51,38 @@ if ($invoice_token && $amount > 0) {
             $stmt = $conn->prepare("INSERT INTO deposits 
                                    (user_id, amount, currency, status, invoice_token, payment_method, network, country, phone, created_at, updated_at) 
                                    VALUES (?, ?, 'XOF', 'completed', ?, ?, ?, ?, ?, NOW(), NOW())");
-            $stmt->execute([$user_id, $amount, $invoice_token, $payment_method, $network, $country, $phone]);
+            $stmt->execute([$user_id, $amount, $token, $payment_method, $network, $country, $phone]);
 
             // Récupérer les détails
             $stmt = $conn->prepare("SELECT amount, status, created_at 
                                    FROM deposits 
                                    WHERE user_id = ? AND invoice_token = ?");
-            $stmt->execute([$user_id, $invoice_token]);
+            $stmt->execute([$user_id, $token]);
             $deposit = $stmt->fetch();
 
-            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Nouvelle transaction insérée et marquée completed pour user_id $user_id, token $invoice_token, montant $amount XOF\n", FILE_APPEND);
+            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Nouvelle transaction insérée et marquée completed pour user_id $user_id, invoice_token $token, montant $amount XOF\n", FILE_APPEND);
         } else {
             // Si elle existe, s'assurer qu'elle est marquée completed
             $stmt = $conn->prepare("UPDATE deposits 
                                    SET status = 'completed', updated_at = NOW() 
                                    WHERE user_id = ? AND invoice_token = ?");
-            $stmt->execute([$user_id, $invoice_token]);
+            $stmt->execute([$user_id, $token]);
 
             // Recharger les détails
             $stmt = $conn->prepare("SELECT amount, status, created_at 
                                    FROM deposits 
                                    WHERE user_id = ? AND invoice_token = ?");
-            $stmt->execute([$user_id, $invoice_token]);
+            $stmt->execute([$user_id, $token]);
             $deposit = $stmt->fetch();
 
-            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Transaction existante marquée completed pour user_id $user_id, token $invoice_token\n", FILE_APPEND);
+            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Transaction existante marquée completed pour user_id $user_id, invoice_token $token\n", FILE_APPEND);
         }
     } catch (PDOException $e) {
         file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur SQL : " . $e->getMessage() . "\n", FILE_APPEND);
-        $error_message = "Une erreur est survenue. Veuillez réessayer.";
+        $error_message = "Une erreur est survenue lors du traitement de la transaction.";
     }
 } else {
-    $error_message = "Identifiant de transaction ou montant invalide.";
+    $error_message = $token ? "Montant invalide." : "Identifiant de transaction manquant.";
 }
 ?>
 <!DOCTYPE html>
