@@ -4,8 +4,8 @@ use Paydunya\Setup;
 
 // Hardcoded PayDunya API keys
 define('PAYDUNYA_MASTER_KEY', '61UU2abw-fmvT-nNDA-GFMe-WcecHjEdfYoP');
-define('PAYDUNYA_PRIVATE_KEY', 'test_private_7yq2nkCQckLYWOfFpiRFFM1lUBV');
-define('PAYDUNYA_TOKEN', 'Jpjdn5hYIsSMfJpw35oR');
+define('PAYDUNYA_PRIVATE_KEY', 'live_private_omjNDYClxSRu8KZoDBSvLRo4QEm');
+define('PAYDUNYA_TOKEN', 'X7R67BRbIbnthZ7BTyPr');
 
 // Configure PayDunya
 Setup::setMasterKey(PAYDUNYA_MASTER_KEY);
