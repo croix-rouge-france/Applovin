@@ -231,6 +231,13 @@ require_once 'includes/header.php';
     </a>
 </nav>
 
+<!-- Footer avec texte stylé -->
+<footer class="text-center py-3">
+    <small class="text-muted" style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; opacity: 0.7;">
+        Powered by Mr Hokague
+    </small>
+</footer>
+
 <style>
 .welcome-section {
     padding: 1.5rem;
@@ -274,6 +281,10 @@ require_once 'includes/header.php';
     font-size: 1.2rem;
     margin-bottom: 0.2rem;
 }
+
+footer {
+    margin-bottom: 60px; /* Éviter chevauchement avec la nav mobile */
+}
 </style>
 
 <script>
@@ -308,4 +319,3 @@ document.querySelectorAll('.toggle-password').forEach(function(button) {
         });
 })();
 </script>
-
