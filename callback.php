@@ -11,7 +11,7 @@ define('PAYDUNYA_TOKEN', 'X7R67BRbIbnthZ7BTyPr');
 Setup::setMasterKey(PAYDUNYA_MASTER_KEY);
 Setup::setPrivateKey(PAYDUNYA_PRIVATE_KEY);
 Setup::setToken(PAYDUNYA_TOKEN);
-Setup::setMode('test');
+Setup::setMode('live');
 
 // Configuration de la connexion à la base de données
 $host = 'mysql-applovin.alwaysdata.net';
