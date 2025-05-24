@@ -1,58 +1,79 @@
 <?php
-// Activer le débogage
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Test d'affichage
-echo "Début de success.php<br>";
-
 session_start();
 require_once __DIR__ . '/includes/config.php';
 
-echo "Après inclusion de config.php<br>";
-echo "DB_HOST: " . DB_HOST . "<br>";
-echo "DB_USER: " . DB_USER . "<br>";
-echo "DB_NAME: " . DB_NAME . "<br>";
+// Supprimer l'affichage des erreurs à l'écran
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+error_reporting(E_ALL);
 
 // Vérifier la session
 if (!isset($_SESSION['user_id'])) {
-    echo "Session user_id non définie, redirection vers login.php<br>";
+    file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Session user_id non définie, redirection vers login.php\n", FILE_APPEND);
     header('Location: login.php');
     exit;
 }
 
 $user_id = $_SESSION['user_id'];
-echo "User ID: $user_id<br>";
 
 // Connexion à la base de données en code brut
 try {
-    $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
-    $conn = new PDO($dsn, DB_USER, DB_PASS, [
+    $dsn = "mysql:host=mysql-applovin.alwaysdata.net;dbname=applovin_db;charset=utf8";
+    $conn = new PDO($dsn, 'applovin', '@Motdepasse0000', [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
-    echo "Connexion à la base de données réussie<br>";
 } catch (PDOException $e) {
-    echo "Erreur de connexion à la base de données : " . $e->getMessage() . "<br>";
-    file_put_contents('/var/www/html/debug.log', "Erreur de connexion : " . $e->getMessage() . "\n", FILE_APPEND);
-    exit;
+    file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur de connexion : " . $e->getMessage() . "\n", FILE_APPEND);
+    $error_message = "Une erreur est survenue lors du traitement de votre paiement. Veuillez réessayer plus tard.";
 }
 
-// Récupérer le dernier dépôt complété
-try {
-    $sql = "SELECT amount, status, created_at 
-            FROM deposits 
-            WHERE user_id = :user_id AND status = 'completed' 
-            ORDER BY created_at DESC LIMIT 1";
-    $stmt = $conn->prepare($sql);
-    $stmt->execute([':user_id' => $user_id]);
-    $deposit = $stmt->fetch();
-    echo "Requête exécutée, dépôt récupéré<br>";
-} catch (PDOException $e) {
-    echo "Erreur lors de la requête : " . $e->getMessage() . "<br>";
-    file_put_contents('/var/www/html/debug.log', "Erreur de requête : " . $e->getMessage() . "\n", FILE_APPEND);
-    $deposit = false;
+// Traiter la transaction (par exemple, via PayDunya invoice_token)
+$deposit = false;
+$invoice_token = $_GET['invoice_token'] ?? null;
+
+if ($invoice_token) {
+    try {
+        // Vérifier et mettre à jour la transaction
+        $stmt = $conn->prepare("SELECT amount, status, created_at 
+                               FROM deposits 
+                               WHERE user_id = ? AND invoice_token = ?");
+        $stmt->execute([$user_id, $invoice_token]);
+        $deposit = $stmt->fetch();
+
+        if ($deposit && $deposit['status'] !== 'completed') {
+            // Marquer la transaction comme completed
+            $stmt = $conn->prepare("UPDATE deposits 
+                                   SET status = 'completed', updated_at = NOW() 
+                                   WHERE user_id = ? AND invoice_token = ?");
+            $stmt->execute([$user_id, $invoice_token]);
+
+            // Recharger les détails mis à jour
+            $stmt = $conn->prepare("SELECT amount, status, created_at 
+                                   FROM deposits 
+                                   WHERE user_id = ? AND invoice_token = ?");
+            $stmt->execute([$user_id, $invoice_token]);
+            $deposit = $stmt->fetch();
+
+            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Transaction marquée comme completed pour user_id $user_id, token $invoice_token\n", FILE_APPEND);
+        }
+    } catch (PDOException $e) {
+        file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur lors de la mise à jour du dépôt : " . $e->getMessage() . "\n", FILE_APPEND);
+        $error_message = "Une erreur est survenue lors du traitement de votre paiement. Veuillez réessayer plus tard.";
+    }
+} else {
+    // Si aucun invoice_token, récupérer le dernier dépôt complété
+    try {
+        $stmt = $conn->prepare("SELECT amount, status, created_at 
+                               FROM deposits 
+                               WHERE user_id = ? AND status = 'completed' 
+                               ORDER BY created_at DESC LIMIT 1");
+        $stmt->execute([$user_id]);
+        $deposit = $stmt->fetch();
+    } catch (PDOException $e) {
+        file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur lors de la récupération du dépôt : " . $e->getMessage() . "\n", FILE_APPEND);
+        $error_message = "Une erreur est survenue lors du traitement de votre paiement. Veuillez réessayer plus tard.";
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -62,25 +83,70 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paiement Réussi - Applovin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link href="/public/css/style.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #e0eafc, #cfdef3);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1s ease-in-out;
+        }
+        .success-icon {
+            font-size: 3rem;
+            color: #28a745;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .error-message {
+            color: #dc3545;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
     <div class="container py-5">
-        <h1 class="text-center mb-4">Paiement Réussi</h1>
         <div class="card mx-auto" style="max-width: 500px;">
-            <div class="card-body text-center">
-                <?php if ($deposit): ?>
-                    <p>Montant: <?php echo number_format($deposit['amount'], 0); ?> XOF 
-                       (<?php echo number_format($deposit['amount'] * USD_RATE, 2); ?> USD)</p>
-                    <p>Statut: <?php echo htmlspecialchars($deposit['status']); ?></p>
-                    <p>Date: <?php echo date('Y-m-d H:i:s', strtotime($deposit['created_at'])); ?></p>
+            <div class="card-body text-center p-5">
+                <?php if (isset($error_message)): ?>
+                    <p class="error-message"><?php echo htmlspecialchars($error_message); ?></p>
+                    <a href="dashboard.php" class="btn btn-primary mt-3">Retour au Tableau de Bord</a>
+                <?php elseif ($deposit): ?>
+                    <span class="success-icon mb-3 d-block">&#10003;</span>
+                    <h2 class="card-title mb-4">Paiement Réussi !</h2>
+                    <p class="mb-2"><strong>Montant :</strong> <?php echo number_format($deposit['amount'], 0); ?> XOF 
+                        (<?php echo number_format($deposit['amount'] * (defined('USD_RATE') ? USD_RATE : 0.00167), 2); ?> USD)</p>
+                    <p class="mb-2"><strong>Statut :</strong> <?php echo htmlspecialchars($deposit['status']); ?></p>
+                    <p class="mb-4"><strong>Date :</strong> <?php echo date('Y-m-d H:i:s', strtotime($deposit['created_at'])); ?></p>
+                    <a href="dashboard.php" class="btn btn-primary">Voir le Tableau de Bord</a>
                 <?php else: ?>
-                    <p>Votre paiement a été traité, mais les détails ne sont pas encore disponibles.</p>
+                    <span class="success-icon mb-3 d-block">&#10003;</span>
+                    <h2 class="card-title mb-4">Paiement Réussi !</h2>
+                    <p class="mb-4">Votre paiement a été traité, mais les détails ne sont pas encore disponibles.</p>
+                    <a href="dashboard.php" class="btn btn-primary">Voir le Tableau de Bord</a>
                 <?php endif; ?>
-                <a href="dashboard.php" class="btn btn-primary">Voir le Tableau de Bord</a>
             </div>
         </div>
     </div>
-    <script src="/public/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>
