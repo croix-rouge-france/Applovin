@@ -659,7 +659,7 @@ require_once 'includes/header.php';
                     
                     <div class="input-group mb-3">
                         <input type="text" class="form-control" id="referralLink" 
-                               value="<?= "https://applovin.kesug.com/register.php?ref=".$user['referral_code'] ?>" readonly>
+                               value="<?= "https://applovin-yy2u.onrender.com/register.php?ref=".$user['referral_code'] ?>" readonly>
                         <button class="btn btn-conoco" onclick="copyReferralLink()">
                             <i class="fas fa-copy me-1"></i>Copier
                         </button>
