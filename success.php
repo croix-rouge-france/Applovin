@@ -15,6 +15,11 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $invoice_token = $_GET['invoice_token'] ?? null;
+$amount = isset($_GET['amount']) ? (float)$_GET['amount'] : 0;
+$network = $_GET['network'] ?? 'N/A';
+$country = $_GET['country'] ?? 'N/A';
+$phone = $_GET['phone'] ?? 'N/A';
+$payment_method = $_GET['payment_method'] ?? 'mobile_money';
 
 // Connexion à la base de données
 try {
@@ -29,33 +34,52 @@ try {
 
 // Traiter la transaction
 $deposit = false;
-if ($invoice_token) {
+if ($invoice_token && $amount > 0) {
     try {
-        // Forcer le statut à completed
-        $stmt = $conn->prepare("UPDATE deposits 
-                               SET status = 'completed', updated_at = NOW() 
-                               WHERE user_id = ? AND invoice_token = ?");
-        $stmt->execute([$user_id, $invoice_token]);
-
-        // Récupérer les détails
+        // Vérifier si la transaction existe déjà
         $stmt = $conn->prepare("SELECT amount, status, created_at 
                                FROM deposits 
                                WHERE user_id = ? AND invoice_token = ?");
         $stmt->execute([$user_id, $invoice_token]);
         $deposit = $stmt->fetch();
 
-        if ($deposit) {
-            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Transaction marquée completed pour user_id $user_id, token $invoice_token\n", FILE_APPEND);
+        if (!$deposit) {
+            // Insérer une nouvelle transaction avec statut completed
+            $stmt = $conn->prepare("INSERT INTO deposits 
+                                   (user_id, amount, currency, status, invoice_token, payment_method, network, country, phone, created_at, updated_at) 
+                                   VALUES (?, ?, 'XOF', 'completed', ?, ?, ?, ?, ?, NOW(), NOW())");
+            $stmt->execute([$user_id, $amount, $invoice_token, $payment_method, $network, $country, $phone]);
+
+            // Récupérer les détails
+            $stmt = $conn->prepare("SELECT amount, status, created_at 
+                                   FROM deposits 
+                                   WHERE user_id = ? AND invoice_token = ?");
+            $stmt->execute([$user_id, $invoice_token]);
+            $deposit = $stmt->fetch();
+
+            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Nouvelle transaction insérée et marquée completed pour user_id $user_id, token $invoice_token, montant $amount XOF\n", FILE_APPEND);
         } else {
-            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Aucun dépôt trouvé pour user_id $user_id, token $invoice_token\n", FILE_APPEND);
-            $error_message = "Transaction non trouvée.";
+            // Si elle existe, s'assurer qu'elle est marquée completed
+            $stmt = $conn->prepare("UPDATE deposits 
+                                   SET status = 'completed', updated_at = NOW() 
+                                   WHERE user_id = ? AND invoice_token = ?");
+            $stmt->execute([$user_id, $invoice_token]);
+
+            // Recharger les détails
+            $stmt = $conn->prepare("SELECT amount, status, created_at 
+                                   FROM deposits 
+                                   WHERE user_id = ? AND invoice_token = ?");
+            $stmt->execute([$user_id, $invoice_token]);
+            $deposit = $stmt->fetch();
+
+            file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Transaction existante marquée completed pour user_id $user_id, token $invoice_token\n", FILE_APPEND);
         }
     } catch (PDOException $e) {
         file_put_contents(__DIR__ . '/debug.log', date('Y-m-d H:i:s') . " : Erreur SQL : " . $e->getMessage() . "\n", FILE_APPEND);
         $error_message = "Une erreur est survenue. Veuillez réessayer.";
     }
 } else {
-    $error_message = "Aucun identifiant de transaction fourni.";
+    $error_message = "Identifiant de transaction ou montant invalide.";
 }
 ?>
 <!DOCTYPE html>
@@ -121,7 +145,7 @@ if ($invoice_token) {
                     <p class="mb-4"><strong>Date :</strong> <?php echo date('Y-m-d H:i:s', strtotime($deposit['created_at'])); ?></p>
                     <a href="dashboard.php" class="btn btn-primary">Voir le Tableau de Bord</a>
                 <?php else: ?>
-                    <p class="error-message">Transaction non trouvée.</p>
+                    <p class="error-message">Transaction non traitée.</p>
                     <a href="dashboard.php" class="btn btn-primary mt-3">Retour au Tableau de Bord</a>
                 <?php endif; ?>
             </div>
